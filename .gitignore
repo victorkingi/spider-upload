@@ -1,2 +1,6 @@
 # Project exclude paths
 /target/
+/.idea/
+/files/
+/backup-free.iml
+/cache.txt
