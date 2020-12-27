@@ -1,6 +1,6 @@
 import com.google.common.collect.ImmutableList;
+import me.tongfei.progressbar.ProgressBar;
 
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
@@ -9,6 +9,8 @@ import java.nio.file.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 public final class SpiderUpload {
@@ -18,14 +20,18 @@ public final class SpiderUpload {
         private final String mainDir;
         private final ImmutableList<String> directories;
         private final Path diffDrive;
+        private int directoryCount;
+        private boolean showProgress;
 
         private MySpiderUpload(final Map<String, Long> cache, final String mainDir,
                                final ImmutableList<String> directories, final Path diffDrive) throws IOException {
             this.cache = cache;
             this.mainDir = mainDir;
             this.directories = directories;
-            //an extra drive incase you have one to do a spider upload
+            //an extra drive in case you have one to do a spider upload
             this.diffDrive = diffDrive;
+            this.directoryCount = 0;
+            this.showProgress = true;
             executeSpiderUpload();
         }
 
@@ -53,39 +59,67 @@ public final class SpiderUpload {
             traverseAllSubDirectories(diffDrive);
         }
 
+        private int countSubDir(String dirPath) {
+            directoryCount++;
+            int count = 0;
+            File f = new File(dirPath);
+            File[] files = f.listFiles();
+
+            if (files != null)
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        count = countSubDir(file.getAbsolutePath());
+                        directoryCount += count;
+                    }
+                }
+            return count;
+        }
+
         private void traverseAllSubDirectories(final Path p) throws IOException {
+            directoryCount = 0;
+            countSubDir(p.toString());
+            System.out.println(directoryCount+" folders in "+p+" will receive spiders...");
+            Thread progress = new Thread(() -> {
+                String anim= "|/-\\";
+                int x = 0;
+                while (showProgress) {
+                    System.out.print("\rRefreshing cache for: "+ p + " " + anim.charAt(x++ % anim.length())+" might take a while if first time");
+                    try { Thread.sleep(200); }
+                    catch (Exception e) { e.printStackTrace();}
+                }
+                try { Thread.sleep(1000); }
+                catch (Exception e) { e.printStackTrace();}
+                while (!showProgress) {
+                    System.out.print("\rDispersing spiders for: "+ p + " " + anim.charAt(x++ % anim.length())+" might take some time depending on number of folders receiving spiders");
+                    try { Thread.sleep(200); }
+                    catch (Exception e) { e.printStackTrace();}
+                }
+            });
+            progress.start();
             Stream<Path> stream = Files.find(p, 999999999, (path, basicFileAttributes) -> {
                 File myFile = path.toFile();
-                refreshCacheData(myFile);
+                try {
+                    refreshCacheData(myFile);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 return basicFileAttributes.isDirectory()
                         && !myFile.getName().contentEquals("D:\\")
                         && !myFile.getName().contentEquals("E:\\");
             });
+            showProgress = false;
+
             //watch all subdirectories
             stream.forEach((dirName) -> {
                 Thread myThread = new Thread(() -> spiderWatch(dirName));
                 myThread.start();
             });
-        }
-
-        private void refreshCacheData(final File myFile) {
-            for (Map.Entry<String, Long> val : cache.entrySet()) {
-                try {
-                    if (myFile.getCanonicalPath().equals(val.getKey())
-                            && myFile.lastModified() != val.getValue()) {
-                        cache.put(val.getKey(), myFile.lastModified());
-                        updateCacheFile(val.getKey(), myFile.lastModified());
-                        System.out.println("uploading...");
-                        uploadToCloud(myFile.getCanonicalPath());
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            System.out.println("\nDone!");
+            System.out.println("watching..."+p.toString()+" and all sub directories");
+            showProgress = true;
         }
 
         private void spiderWatch(Path dir) {
-            System.out.println("watching..."+dir);
             try (WatchService service = FileSystems.getDefault().newWatchService()) {
                 Map<WatchKey, Path> keyMap = new HashMap<>();
                 keyMap.put(dir.register(service,
@@ -154,6 +188,29 @@ public final class SpiderUpload {
             upload.uploadObject("blender-ableton-backup", "blender-ableton", finalDir, dir);
         }
 
+        private void refreshCacheData(final File myFile) throws IOException {
+            boolean containsFile = false;
+            for (Map.Entry<String, Long> val : cache.entrySet()) {
+                try {
+                    if (myFile.getCanonicalPath().equals(val.getKey())
+                            && myFile.lastModified() != val.getValue()) {
+                        cache.put(val.getKey(), myFile.lastModified());
+                        updateCacheFile(val.getKey(), myFile.lastModified());
+                        System.out.println("uploading...");
+                        uploadToCloud(myFile.getCanonicalPath());
+                    }
+                    if (myFile.getCanonicalPath().equals(val.getKey())) {
+                        containsFile = true;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (!containsFile) {
+                cache.put(myFile.getCanonicalPath(), myFile.lastModified());
+                updateCacheFile(myFile.getCanonicalPath(), myFile.lastModified());
+            }
+        }
         private void createCache() {
             try {
                 File myObj = new File("cache.txt");
@@ -168,14 +225,12 @@ public final class SpiderUpload {
                 e.printStackTrace();
             }
         }
-
         private void updateCacheFile(String key, Long val) {
             try {
                 FileWriter myWriter = new FileWriter("cache.txt", true);
                 myWriter.append(key).append("   :").append(String.valueOf(val))
                         .append("\n");
                 myWriter.close();
-                System.out.println("Successful write.");
             } catch (IOException e) {
                 System.out.println("An error occurred.");
                 e.printStackTrace();
@@ -198,9 +253,9 @@ public final class SpiderUpload {
         }
 
     }
-    @Nonnull public final MySpiderUpload build(final Map<String, Long> cache, final String mainDir,
-                                                         final ImmutableList<String> directories,
-                                                         final Path diffDrive) throws IOException {
-        return new MySpiderUpload(cache, mainDir, directories, diffDrive);
+    public final void build(final Map<String, Long> cache, final String mainDir,
+                                     final ImmutableList<String> directories,
+                                     final Path diffDrive) throws IOException {
+        new MySpiderUpload(cache, mainDir, directories, diffDrive);
     }
 }

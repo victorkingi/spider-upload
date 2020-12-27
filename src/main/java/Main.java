@@ -3,12 +3,10 @@ import com.google.common.collect.ImmutableList;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.stream.Stream;
 
 public class Main {
 
-    //we should have a least of all files that have changed within a session
-    public static void main(String... args) throws IOException {
+    public static void main(String[] args) throws IOException {
         Path extraPath = Paths.get("E:\\virtualbox");
         final String mainDir = "D:\\";
         File file = new File(mainDir);
