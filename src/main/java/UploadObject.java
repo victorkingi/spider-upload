@@ -25,8 +25,12 @@ public class UploadObject {
         BlobId blobId = BlobId.of(bucketName, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         storage.create(blobInfo, Files.readAllBytes(Paths.get(filePath)));
-
-        System.out.println(
-                "File " + filePath + " uploaded to bucket " + bucketName + " as " + objectName);
+        System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
+        System.out.print("File ");
+        System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
+        System.out.print(" uploaded to bucket ");
+        System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
+        System.out.print(" as ");
+        System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET);
     }
 }

@@ -1,19 +1,22 @@
 import com.google.common.collect.ImmutableList;
-import me.tongfei.progressbar.ProgressBar;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.*;
 import java.util.stream.Stream;
 
 public final class SpiderUpload {
+    public static final String TEXT_RESET = "\u001B[0m";
+    public static final String TEXT_GREEN = "\u001B[32m";
+    public static final String TEXT_YELLOW = "\u001B[33m";
+    public static final String TEXT_BLUE = "\u001B[34m";
+    public static final String TEXT_PURPLE = "\u001B[35m";
+    public static final String TEXT_CYAN = "\u001B[36m";
+    public static final String TEXT_WHITE = "\u001B[37m";
+    public static final String TEXT_RED = "\u001B[31m";
 
     private static final class MySpiderUpload {
         private final Map<String, Long> cache;
@@ -21,7 +24,6 @@ public final class SpiderUpload {
         private final ImmutableList<String> directories;
         private final Path diffDrive;
         private int directoryCount;
-        private boolean showProgress;
 
         private MySpiderUpload(final Map<String, Long> cache, final String mainDir,
                                final ImmutableList<String> directories, final Path diffDrive) throws IOException {
@@ -31,13 +33,13 @@ public final class SpiderUpload {
             //an extra drive in case you have one to do a spider upload
             this.diffDrive = diffDrive;
             this.directoryCount = 0;
-            this.showProgress = true;
             executeSpiderUpload();
         }
 
         private void executeSpiderUpload() throws IOException {
             createCache();
             readCacheFile();
+            List<String> selected = new ArrayList<>();
             for (String directory : directories) {
                 //i only want to backup these folders and their sub directories
                 boolean accept = directory.contentEquals("adobe after effects")
@@ -51,12 +53,26 @@ public final class SpiderUpload {
                         || directory.contentEquals("year 2")
                         || directory.contentEquals("zbrush");
                 if (accept) {
+                    selected.add(directory);
                     String usable = mainDir.concat(directory);
                     Path usePath = Paths.get(usable);
                     traverseAllSubDirectories(usePath);
                 }
             }
             traverseAllSubDirectories(diffDrive);
+            System.out.println(TEXT_GREEN+"✅   : Done!"+TEXT_RESET);
+
+            for (String select : selected) {
+                String dir = mainDir+""+select;
+                System.out.print(TEXT_GREEN+"✅    :"+TEXT_RESET);
+                System.out.print(" watching... ");
+                System.out.print(TEXT_GREEN+dir+TEXT_RESET);
+                System.out.println(" and all sub directories");
+            }
+            System.out.print(TEXT_GREEN+"✅   :"+TEXT_RESET);
+            System.out.print(" watching... ");
+            System.out.print(TEXT_GREEN+diffDrive+TEXT_RESET);
+            System.out.println(" and all sub directories");
         }
 
         private int countSubDir(String dirPath) {
@@ -77,25 +93,21 @@ public final class SpiderUpload {
 
         private void traverseAllSubDirectories(final Path p) throws IOException {
             directoryCount = 0;
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.print(" Counting subdirectories of ");
+            System.out.println(TEXT_GREEN+p+TEXT_RESET);
             countSubDir(p.toString());
-            System.out.println(directoryCount+" folders in "+p+" will receive spiders...");
-            Thread progress = new Thread(() -> {
-                String anim= "|/-\\";
-                int x = 0;
-                while (showProgress) {
-                    System.out.print("\rRefreshing cache for: "+ p + " " + anim.charAt(x++ % anim.length())+" might take a while if first time");
-                    try { Thread.sleep(200); }
-                    catch (Exception e) { e.printStackTrace();}
-                }
-                try { Thread.sleep(1000); }
-                catch (Exception e) { e.printStackTrace();}
-                while (!showProgress) {
-                    System.out.print("\rDispersing spiders for: "+ p + " " + anim.charAt(x++ % anim.length())+" might take some time depending on number of folders receiving spiders");
-                    try { Thread.sleep(200); }
-                    catch (Exception e) { e.printStackTrace();}
-                }
-            });
-            progress.start();
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            if (directoryCount > 1) {
+                System.out.print(" "+directoryCount+" folders in ");
+            } else {
+                System.out.print(" "+directoryCount+" folder in ");
+            }
+            System.out.print(TEXT_GREEN+p+TEXT_RESET);
+            System.out.println(" will receive spiders...");
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.print(" Refreshing cache for ");
+            System.out.println(TEXT_GREEN+p+TEXT_RESET);
             Stream<Path> stream = Files.find(p, 999999999, (path, basicFileAttributes) -> {
                 File myFile = path.toFile();
                 try {
@@ -105,18 +117,21 @@ public final class SpiderUpload {
                 }
                 return basicFileAttributes.isDirectory()
                         && !myFile.getName().contentEquals("D:\\")
-                        && !myFile.getName().contentEquals("E:\\");
+                        && !myFile.getName().contentEquals("E:\\") && myFile.canRead();
             });
-            showProgress = false;
+            System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
+
 
             //watch all subdirectories
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.print(" Dispersing spiders for ");
+            System.out.print(TEXT_GREEN+p+TEXT_RESET);
+            System.out.println(" might take a while");
             stream.forEach((dirName) -> {
                 Thread myThread = new Thread(() -> spiderWatch(dirName));
                 myThread.start();
             });
-            System.out.println("\nDone!");
-            System.out.println("watching..."+p.toString()+" and all sub directories");
-            showProgress = true;
+            System.out.println(TEXT_GREEN+"✅   : Spiders dispersed... "+p+TEXT_RESET);
         }
 
         private void spiderWatch(Path dir) {
@@ -177,7 +192,7 @@ public final class SpiderUpload {
             cache.put(key, current.lastModified());
             updateCacheFile(key, current.lastModified());
             System.out.println(eventDir + ": " + kind + ": " + eventPath);
-            System.out.println("uploading...");
+            System.out.println("\nuploading...");
             uploadToCloud(key);
         }
 
@@ -196,7 +211,8 @@ public final class SpiderUpload {
                             && myFile.lastModified() != val.getValue()) {
                         cache.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
-                        System.out.println("uploading...");
+                        System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                        System.out.println(TEXT_PURPLE+"uploading..."+TEXT_RESET);
                         uploadToCloud(myFile.getCanonicalPath());
                     }
                     if (myFile.getCanonicalPath().equals(val.getKey())) {
@@ -215,13 +231,16 @@ public final class SpiderUpload {
             try {
                 File myObj = new File("cache.txt");
                 if (myObj.createNewFile()) {
-                    System.out.println("File created: " + myObj.getName());
+                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                    System.out.print(" Cache created: ");
+                    System.out.println(TEXT_GREEN+myObj.getName()+TEXT_RESET);
 
                 } else {
-                    System.out.println("File already exists.");
+                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                    System.out.println(" Cache exists skipping creation.");
                 }
             } catch (IOException e) {
-                System.out.println("An error occurred.");
+                System.out.println(TEXT_RED+"An error occurred."+TEXT_RESET);
                 e.printStackTrace();
             }
         }
@@ -232,7 +251,7 @@ public final class SpiderUpload {
                         .append("\n");
                 myWriter.close();
             } catch (IOException e) {
-                System.out.println("An error occurred.");
+                System.out.println(TEXT_RED+"An error occurred."+TEXT_RESET);
                 e.printStackTrace();
             }
         }
