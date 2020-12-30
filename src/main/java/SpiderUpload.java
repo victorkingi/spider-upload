@@ -191,16 +191,24 @@ public final class SpiderUpload {
                                       final Path eventPath, final File current, String key) throws IOException {
             cache.put(key, current.lastModified());
             updateCacheFile(key, current.lastModified());
-            System.out.println(eventDir + ": " + kind + ": " + eventPath);
-            System.out.println("\nuploading...");
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
             uploadToCloud(key);
         }
 
         private void uploadToCloud(String dir) throws IOException {
+            File file = new File(dir);
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
-            UploadObject upload = new UploadObject();
-            upload.uploadObject("blender-ableton-backup", "blender-ableton", finalDir, dir);
+            if ((file.length()/1024) > 2000000) {
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(TEXT_YELLOW+" upload of "+TEXT_RESET+TEXT_GREEN+dir+TEXT_RESET+TEXT_YELLOW+" skipped cause file is above 2GB"+TEXT_RESET);
+            } else {
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
+                UploadObject upload = new UploadObject();
+                upload.uploadObject("blender-ableton-backup", "blender-ableton", finalDir, dir);
+            }
         }
 
         private void refreshCacheData(final File myFile) throws IOException {
@@ -211,8 +219,6 @@ public final class SpiderUpload {
                             && myFile.lastModified() != val.getValue()) {
                         cache.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
-                        System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                        System.out.println(TEXT_PURPLE+"uploading..."+TEXT_RESET);
                         uploadToCloud(myFile.getCanonicalPath());
                     }
                     if (myFile.getCanonicalPath().equals(val.getKey())) {
