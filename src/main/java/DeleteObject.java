@@ -2,7 +2,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
 public class DeleteObject {
-    public static void deleteObject(String projectId, String bucketName, String objectName) {
+    public void deleteObject(String projectId, String bucketName, String objectName) {
         // The ID of your GCP project
         // String projectId = "your-project-id";
 
@@ -15,6 +15,10 @@ public class DeleteObject {
         Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
         storage.delete(bucketName, objectName);
 
-        System.out.println("Object " + objectName + " was deleted from " + bucketName);
+        System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
+        System.out.print(" Object ");
+        System.out.print(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET);
+        System.out.print(" was deleted from ");
+        System.out.print(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
     }
 }
