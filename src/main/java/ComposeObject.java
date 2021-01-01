@@ -3,8 +3,6 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
-import java.util.ArrayList;
-
 public class ComposeObject {
     public void composeObject(
             String bucketName,
