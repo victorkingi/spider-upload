@@ -274,22 +274,37 @@ public final class SpiderUpload {
                         //compose the uploads
                         if (objects.length > 32) {
                             int requestNo = objects.length/32;
+                            String[] finalCombine = new String[requestNo];
                             for (int i = 0; i < requestNo; i++) {
                                 String[] temp = Arrays.copyOfRange(objects, i*32, (i+1)*32);
                                 ComposeObject compose = new ComposeObject();
-                                compose.composeObject(BUCKET_NAME, temp, finalDir, PROJECT_ID);
+                                compose.composeObject(BUCKET_NAME, temp, finalDir+".final"+i, PROJECT_ID);
+                                finalCombine[i] = finalDir+".final"+i;
+                            }
+                            if (finalCombine.length > 32) {
+                                finalCombine = recurseComposing(finalDir, finalCombine);
+                            }
+                            //final composition
+                            ComposeObject compose = new ComposeObject();
+                            compose.composeObject(BUCKET_NAME, finalCombine, finalDir, PROJECT_ID);
+
+                            //delete temp files in cloud
+                            for (String str : finalCombine) {
+                                DeleteObject deleteObject = new DeleteObject();
+                                deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
                             }
 
                         } else {
                             ComposeObject compose = new ComposeObject();
                             compose.composeObject(BUCKET_NAME, objects, finalDir, PROJECT_ID);
+
+                            //delete temp files in cloud
+                            for (String str : objects) {
+                                DeleteObject deleteObject = new DeleteObject();
+                                deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
+                            }
                         }
 
-                        //delete temp files in cloud
-                        for (String str : objects) {
-                            DeleteObject deleteObject = new DeleteObject();
-                            deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
-                        }
                         divider = 32;
                     } else {
                         System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
@@ -302,6 +317,42 @@ public final class SpiderUpload {
                 UploadObject upload = new UploadObject();
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalDir, dir);
             }
+        }
+
+        private String[] recurseComposing(String finalDir, String[] finalCombine) {
+            //if final length is 64 then 64/32 2 more requests
+            int check = finalCombine.length/32;
+            String[] finalArr = new String[check];
+            int count = 0;
+
+            while (check > 0) {
+                String[] temp = Arrays.copyOfRange(finalCombine, count*32, (count+1)*32);
+                ComposeObject compose = new ComposeObject();
+                compose.composeObject(BUCKET_NAME, temp, finalDir +".final"+count, PROJECT_ID);
+
+                for (int i = 0; i < finalCombine.length; i++) {
+                    //if the array value has already been used, then delete it from database
+                    if (i < (count+1)*32) {
+                        //creating final0 will overwrite previous values hence no need
+                        // for deletion
+                        if (i != 0) {
+                            DeleteObject deleteObject = new DeleteObject();
+                            deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, finalCombine[i]);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                finalArr[count] = finalDir +".final"+count;
+                check--;
+                count++;
+            }
+
+            if (finalArr.length > 32) {
+                recurseComposing(finalDir, finalArr);
+            }
+
+            return finalArr;
         }
 
         private void refreshCacheData(final File myFile) throws IOException {
