@@ -66,7 +66,7 @@ public final class SpiderUpload {
 
             for (String select : selected) {
                 String dir = mainDir+""+select;
-                System.out.print(TEXT_GREEN+"✅    :"+TEXT_RESET);
+                System.out.print(TEXT_GREEN+"✅   :"+TEXT_RESET);
                 System.out.print(" watching... ");
                 System.out.print(TEXT_GREEN+dir+TEXT_RESET);
                 System.out.println(" and all sub directories");
@@ -133,8 +133,6 @@ public final class SpiderUpload {
                 System.out.print(" failed access and threw error ");
                 System.out.println(SpiderUpload.TEXT_RED+e.toString()+SpiderUpload.TEXT_RESET);
             }
-            System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
-
 
             //watch all subdirectories
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
@@ -146,6 +144,7 @@ public final class SpiderUpload {
                 Thread myThread = new Thread(() -> spiderWatch(dirName));
                 myThread.start();
             });
+            System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
             System.out.println(TEXT_GREEN+"✅   : Spiders dispersed... "+p+TEXT_RESET);
         }
 
@@ -429,6 +428,7 @@ public final class SpiderUpload {
         }
 
     }
+
     public final void build(final Map<String, Long> cache, final String mainDir,
                                      final ImmutableList<String> directories,
                                      final Path diffDrive) {
