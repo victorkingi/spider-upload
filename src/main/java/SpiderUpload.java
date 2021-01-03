@@ -175,7 +175,7 @@ public final class SpiderUpload {
                     WatchEvent.Kind<?> kind = event.kind();
                     Path eventPath = (Path)event.context();
                     File current = new File(eventDir.toString()+'/'+eventPath.toString());
-                    if (current.exists() && !current.isDirectory() && !eventPath.toString().contains(".part")) {
+                    if (current.exists() && !current.isDirectory() && !eventPath.toString().contains(".part") && !eventPath.toFile().isDirectory()) {
                         checkForChanges(eventDir, kind, eventPath, current);
                     }
                 }
@@ -349,7 +349,7 @@ public final class SpiderUpload {
             }
 
             if (finalArr.length > 32) {
-                recurseComposing(finalDir, finalArr);
+                finalArr = recurseComposing(finalDir, finalArr);
             }
 
             return finalArr;
