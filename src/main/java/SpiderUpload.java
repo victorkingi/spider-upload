@@ -109,7 +109,25 @@ public final class SpiderUpload {
             System.out.println(" will receive spiders...");
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
             System.out.print(" Refreshing cache for ");
-            System.out.println(TEXT_GREEN+p+TEXT_RESET);
+            System.out.println(TEXT_GREEN+p+TEXT_RESET+"...");
+
+            Stream<Path> stream = walkDirectoryTree(p);
+
+            //watch all subdirectories
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.print(" Dispersing spiders for ");
+            System.out.print(TEXT_GREEN+p+TEXT_RESET);
+            System.out.println(" might take a while...");
+            assert stream != null;
+            stream.forEach((dirName) -> {
+                Thread myThread = new Thread(() -> spiderWatch(dirName));
+                myThread.start();
+            });
+            System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
+            System.out.println(TEXT_GREEN+"✅   : Spiders dispersed... "+p+TEXT_RESET);
+        }
+
+        private Stream<Path> walkDirectoryTree(Path p) {
             Stream<Path> stream = null;
 
             try {
@@ -129,23 +147,11 @@ public final class SpiderUpload {
             } catch (IOException e) {
                 System.out.print(SpiderUpload.TEXT_RED+"❗    :"+ SpiderUpload.TEXT_RESET);
                 System.out.print(" File ");
-                System.out.print(SpiderUpload.TEXT_GREEN+p.toString()+SpiderUpload.TEXT_RESET);
+                System.out.print(SpiderUpload.TEXT_GREEN+ p.toString()+SpiderUpload.TEXT_RESET);
                 System.out.print(" failed access and threw error ");
                 System.out.println(SpiderUpload.TEXT_RED+e.toString()+SpiderUpload.TEXT_RESET);
             }
-
-            //watch all subdirectories
-            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-            System.out.print(" Dispersing spiders for ");
-            System.out.print(TEXT_GREEN+p+TEXT_RESET);
-            System.out.println(" might take a while");
-            assert stream != null;
-            stream.forEach((dirName) -> {
-                Thread myThread = new Thread(() -> spiderWatch(dirName));
-                myThread.start();
-            });
-            System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
-            System.out.println(TEXT_GREEN+"✅   : Spiders dispersed... "+p+TEXT_RESET);
+            return stream;
         }
 
         private void spiderWatch(Path dir) {
@@ -222,93 +228,24 @@ public final class SpiderUpload {
             assert !file.isDirectory();
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
-            BigInteger MAX = new BigInteger("50000000000");
+            BigInteger MAX = new BigInteger("2048000000000");
 
             if (file.length() > 2000000000) {
 
-                //confirm if upload of above 50GB will take place
+                //confirm if upload of above 2,048 GB will take place
                 if (file.length() > MAX.longValueExact()) {
                     Scanner myObj = new Scanner(System.in);
-                    System.out.println("File bigger than 50GB, are you sure you wish to continue?"+TEXT_GREEN+"TYPE Y/N"+TEXT_RESET);
+                    System.out.println("File bigger than 2,048 GB, are you sure you wish to continue?"+TEXT_GREEN+"TYPE Y/N"+TEXT_RESET);
                     String prompt = myObj.nextLine();
 
                     if (prompt.equals("Y")) {
-                        System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                        System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
-                        System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                        System.out.println(" "+TEXT_GREEN+dir+TEXT_RESET+" is above 2GB, proceeding with parallel upload...");
-
-                        FileInputStream is = new FileInputStream(file);
-                        UploadObject upload = new UploadObject();
-
-                        findPerfectDivider(file.length());
-                        System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                        System.out.println(" file will be divided "+divider+" times...");
-                        byte[] buf = new byte[(int)(file.length()/divider)];
-                        String[] objects = new String[divider];
-                        int read = 0;
-                        while((is.read(buf)) > 0) {
-                            String newDir = dir+".part"+read;
-                            String edit = newDir.replace(":", "");
-                            String finalPart = edit.replace("\\", "/");
-                            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                            System.out.println(" writing to... "+TEXT_GREEN+newDir+TEXT_RESET);
-                            FileOutputStream os = new FileOutputStream(newDir);
-                            os.write(buf);
-                            os.close();
-                            objects[read] = finalPart;
-                            read++;
-                            //upload the parts
-                            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                            System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET);
-                            upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
-                            File temp = new File(newDir);
-                            boolean deleted = temp.delete();
-                            assert deleted;
-                            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                            System.out.println(" done uploading and cleaned directory... "+TEXT_GREEN+newDir+TEXT_RESET);
-                        }
-                        is.close();
-
-                        //compose the uploads
-                        if (objects.length > 32) {
-                            int requestNo = objects.length/32;
-                            String[] finalCombine = new String[requestNo];
-                            for (int i = 0; i < requestNo; i++) {
-                                String[] temp = Arrays.copyOfRange(objects, i*32, (i+1)*32);
-                                ComposeObject compose = new ComposeObject();
-                                compose.composeObject(BUCKET_NAME, temp, finalDir+".final"+i, PROJECT_ID);
-                                finalCombine[i] = finalDir+".final"+i;
-                            }
-                            if (finalCombine.length > 32) {
-                                finalCombine = recurseComposing(finalDir, finalCombine);
-                            }
-                            //final composition
-                            ComposeObject compose = new ComposeObject();
-                            compose.composeObject(BUCKET_NAME, finalCombine, finalDir, PROJECT_ID);
-
-                            //delete temp files in cloud
-                            for (String str : finalCombine) {
-                                DeleteObject deleteObject = new DeleteObject();
-                                deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
-                            }
-
-                        } else {
-                            ComposeObject compose = new ComposeObject();
-                            compose.composeObject(BUCKET_NAME, objects, finalDir, PROJECT_ID);
-
-                            //delete temp files in cloud
-                            for (String str : objects) {
-                                DeleteObject deleteObject = new DeleteObject();
-                                deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
-                            }
-                        }
-
-                        divider = 32;
+                        parallelUpload(dir, file, finalDir);
                     } else {
                         System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                         System.out.println(TEXT_YELLOW+" user skipped upload of "+TEXT_RESET+TEXT_GREEN+dir+TEXT_RESET);
                     }
+                } else {
+                    parallelUpload(dir, file, finalDir);
                 }
             } else {
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
@@ -316,6 +253,87 @@ public final class SpiderUpload {
                 UploadObject upload = new UploadObject();
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalDir, dir);
             }
+        }
+
+        private void parallelUpload(String dir, File file, String finalDir) throws IOException {
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.println(" "+TEXT_GREEN+ dir +TEXT_RESET+" is above 2GB, proceeding with parallel upload...");
+
+            FileInputStream is = new FileInputStream(file);
+            UploadObject upload = new UploadObject();
+
+            findPerfectDivider(file.length());
+            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+            System.out.println(" file will be divided "+divider+" times...");
+            String[] objects = writePartToTempFile(dir, file, is, upload);
+
+            //compose the uploads
+            if (objects.length > 32) {
+                int requestNo = objects.length/32;
+                String[] finalCombine = new String[requestNo];
+                for (int i = 0; i < requestNo; i++) {
+                    String[] temp = Arrays.copyOfRange(objects, i*32, (i+1)*32);
+                    ComposeObject compose = new ComposeObject();
+                    compose.composeObject(BUCKET_NAME, temp, finalDir +".final"+i, PROJECT_ID);
+                    finalCombine[i] = finalDir +".final"+i;
+                }
+                if (finalCombine.length > 32) {
+                    finalCombine = recurseComposing(finalDir, finalCombine);
+                }
+                //final composition
+                ComposeObject compose = new ComposeObject();
+                compose.composeObject(BUCKET_NAME, finalCombine, finalDir, PROJECT_ID);
+
+                //delete temp files in cloud
+                deleteAllTempObjects(finalCombine);
+
+            } else {
+                ComposeObject compose = new ComposeObject();
+                compose.composeObject(BUCKET_NAME, objects, finalDir, PROJECT_ID);
+
+                //delete temp files in cloud
+                deleteAllTempObjects(objects);
+            }
+
+            divider = 32;
+        }
+
+        private void deleteAllTempObjects(String[] finalCombine) {
+            for (String str : finalCombine) {
+                DeleteObject deleteObject = new DeleteObject();
+                deleteObject.deleteObject(PROJECT_ID, BUCKET_NAME, str);
+            }
+        }
+
+        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload) throws IOException {
+            byte[] buf = new byte[(int)(file.length()/divider)];
+            String[] objects = new String[divider];
+            int read = 0;
+            while((is.read(buf)) > 0) {
+                String newDir = dir +".part"+read;
+                String edit = newDir.replace(":", "");
+                String finalPart = edit.replace("\\", "/");
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(" writing to... "+TEXT_GREEN+newDir+TEXT_RESET);
+                FileOutputStream os = new FileOutputStream(newDir);
+                os.write(buf);
+                os.close();
+                objects[read] = finalPart;
+                read++;
+                //upload the parts
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET);
+                upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
+                File temp = new File(newDir);
+                boolean deleted = temp.delete();
+                assert deleted;
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(" done uploading and cleaned directory... "+TEXT_GREEN+newDir+TEXT_RESET);
+            }
+            is.close();
+            return objects;
         }
 
         private String[] recurseComposing(String finalDir, String[] finalCombine) {
