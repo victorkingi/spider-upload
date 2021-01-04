@@ -228,14 +228,14 @@ public final class SpiderUpload {
             assert !file.isDirectory();
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
-            BigInteger MAX = new BigInteger("2048000000000");
+            BigInteger MAX = new BigInteger("100000000000");
 
             if (file.length() > 2000000000) {
 
                 //confirm if upload of above 2,048 GB will take place
                 if (file.length() > MAX.longValueExact()) {
                     Scanner myObj = new Scanner(System.in);
-                    System.out.println("File bigger than 2,048 GB, are you sure you wish to continue?"+TEXT_GREEN+"TYPE Y/N"+TEXT_RESET);
+                    System.out.println("File bigger than 100 GB, are you sure you wish to continue?"+TEXT_GREEN+"TYPE Y/N"+TEXT_RESET);
                     String prompt = myObj.nextLine();
 
                     if (prompt.equals("Y")) {
