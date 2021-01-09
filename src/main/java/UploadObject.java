@@ -1,7 +1,5 @@
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.*;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -24,8 +22,9 @@ public class UploadObject {
         Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
         BlobId blobId = BlobId.of(bucketName, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+        Blob uploaded = null;
         try {
-            storage.create(blobInfo, Files.readAllBytes(Paths.get(filePath)));
+            uploaded = storage.create(blobInfo, Files.readAllBytes(Paths.get(filePath)));
         } catch (IOException e) {
             System.out.print(SpiderUpload.TEXT_RED+"❗    :"+ SpiderUpload.TEXT_RESET);
             System.out.print(" File ");
@@ -33,6 +32,7 @@ public class UploadObject {
             System.out.print(" failed upload and threw error ");
             System.out.println(SpiderUpload.TEXT_RED+e.toString()+SpiderUpload.TEXT_RESET);
         }
+        assert uploaded != null;
 
         System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
         System.out.print(" File ");
@@ -40,6 +40,6 @@ public class UploadObject {
         System.out.print(" uploaded to bucket ");
         System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
         System.out.print(" as ");
-        System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET);
+        System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET+" size(bytes): "+ SpiderUpload.TEXT_PURPLE+uploaded.getSize()+ SpiderUpload.TEXT_RESET);
     }
 }

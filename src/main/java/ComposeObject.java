@@ -38,7 +38,8 @@ public class ComposeObject {
 
         System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
         System.out.print(" New composite object ");
-        System.out.print(SpiderUpload.TEXT_GREEN+compositeObject.getName()+SpiderUpload.TEXT_RESET);
+        System.out.print(SpiderUpload.TEXT_GREEN+compositeObject.getName()+SpiderUpload.TEXT_RESET+" size(bytes): "
+                + SpiderUpload.TEXT_PURPLE+compositeObject.getSize()+SpiderUpload.TEXT_RESET);
         System.out.print(" was created by combining ");
         for (String str : objects) {
             System.out.println(SpiderUpload.TEXT_GREEN+str+SpiderUpload.TEXT_RESET+", ");

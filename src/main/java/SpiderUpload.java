@@ -360,11 +360,12 @@ public final class SpiderUpload {
                 os.close();
                 objects[read] = finalPart;
                 read++;
+
                 //upload the parts
-                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET);
-                upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
                 File temp = new File(newDir);
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET+" size(bytes): "+TEXT_PURPLE+temp.length()+TEXT_RESET);
+                upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
                 assert temp.delete();
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(" done uploading and cleaned directory... "+TEXT_GREEN+newDir+TEXT_RESET);
