@@ -229,8 +229,15 @@ public final class SpiderUpload {
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
             BigInteger MAX = new BigInteger("100000000000");
+            long fileSize = file.length();
 
-            if (file.length() > 2000000000) {
+            if (fileSize > 2000000000) {
+                ZipFile zipFile = new ZipFile();
+                fileSize = zipFile.zipFile(file.getCanonicalPath());
+                dir = dir.concat(".zip");
+                finalDir = finalDir.concat(".zip");
+            }
+            if (fileSize > 2000000000) {
 
                 //confirm if upload of above 2,048 GB will take place
                 if (file.length() > MAX.longValueExact()) {
@@ -253,8 +260,13 @@ public final class SpiderUpload {
                 UploadObject upload = new UploadObject();
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalDir, dir);
             }
+            if (dir.contains(".zip")) {
+                File uploaded = new File(dir);
+                assert uploaded.delete();
+            }
         }
 
+        //critical section assertions made to confirm state of cloud storage and local
         private void parallelUpload(String dir, File file, String finalDir) throws IOException {
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
             System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
@@ -278,6 +290,7 @@ public final class SpiderUpload {
                     ComposeObject compose = new ComposeObject();
                     compose.composeObject(BUCKET_NAME, temp, finalDir +".final"+i, PROJECT_ID);
                     finalCombine[i] = finalDir +".final"+i;
+                    deleteAllTempObjects(temp);
                 }
                 if (finalCombine.length > 32) {
                     finalCombine = recurseComposing(finalDir, finalCombine);
@@ -296,6 +309,30 @@ public final class SpiderUpload {
                 //delete temp files in cloud
                 deleteAllTempObjects(objects);
             }
+            ListObjects listObjects = new ListObjects();
+            Map<String, Long> listing = listObjects.listObjects(PROJECT_ID, BUCKET_NAME);
+            boolean correct = true;
+            boolean uploaded = false;
+            boolean fileSizeCheck = false;
+            for (Map.Entry<String, Long> blob : listing.entrySet()) {
+                int index = blob.getKey().lastIndexOf('/');
+                String parent = blob.getKey().substring(0, index+1);
+
+                if (parent.equals(finalDir.substring(0, index+1))) {
+                    if (blob.getKey().contains(".part")
+                            || blob.getKey().contains(".final")) {
+                        correct = false;
+                    }
+                    if (blob.getKey().equals(finalDir)) {
+                        uploaded = true;
+                        if (blob.getValue() == file.length()) {
+                            fileSizeCheck = true;
+                        }
+                    }
+                }
+            }
+            //assert file was uploaded
+            assert correct && uploaded && fileSizeCheck;
 
             divider = 32;
         }
@@ -307,7 +344,8 @@ public final class SpiderUpload {
             }
         }
 
-        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload) throws IOException {
+        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload)
+                throws IOException {
             byte[] buf = new byte[(int)(file.length()/divider)];
             String[] objects = new String[divider];
             int read = 0;
@@ -327,8 +365,7 @@ public final class SpiderUpload {
                 System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET);
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
                 File temp = new File(newDir);
-                boolean deleted = temp.delete();
-                assert deleted;
+                assert temp.delete();
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(" done uploading and cleaned directory... "+TEXT_GREEN+newDir+TEXT_RESET);
             }

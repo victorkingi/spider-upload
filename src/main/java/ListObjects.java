@@ -5,9 +5,11 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ListObjects {
-    public ArrayList<String> listObjects(String projectId, String bucketName) {
+    public Map<String, Long> listObjects(String projectId, String bucketName) {
         // The ID of your GCP project
         // String projectId = "your-project-id";
 
@@ -17,10 +19,10 @@ public class ListObjects {
         Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
         Bucket bucket = storage.get(bucketName);
         Page<Blob> blobs = bucket.list();
-        ArrayList<String> files = new ArrayList<>();
+        Map<String, Long> files = new HashMap<>();
 
         for (Blob blob : blobs.iterateAll()) {
-            files.add(blob.getName());
+            files.put(blob.getName(), blob.getSize());
         }
         return files;
     }

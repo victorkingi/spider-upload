@@ -19,6 +19,6 @@ public class DeleteObject {
         System.out.print(" Object ");
         System.out.print(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET);
         System.out.print(" was deleted from ");
-        System.out.print(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
+        System.out.println(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
     }
 }
