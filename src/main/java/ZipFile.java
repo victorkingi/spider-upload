@@ -5,21 +5,20 @@ public class ZipFile {
     public long zipFile(String filePath) {
         try {
             File file = new File(filePath);
-            String zipFileName = file.getName().concat(".zip");
+            String zipFileName = file.getPath().concat(".zip");
 
             FileOutputStream fos = new FileOutputStream(zipFileName);
             FileInputStream fis = new FileInputStream(file);
             ZipOutputStream zos = new ZipOutputStream(fos);
             zos.setLevel(9);
-
-            zos.putNextEntry(new ZipEntry(file.getName()));
-            int divider = 2;
-            while ((file.length()/divider) > 2000000000) {
-                divider += 2;
-            }
-            byte[] buf = new byte[(int)(file.length()/divider)];
-            while((fis.read(buf)) > 0) {
-                zos.write(buf, 0, buf.length);
+            System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
+            System.out.println(SpiderUpload.TEXT_PURPLE+" file bigger than 2GB, zipping to ..."
+                    +SpiderUpload.TEXT_RESET+SpiderUpload.TEXT_GREEN+zipFileName+SpiderUpload.TEXT_RESET+" size: "+file.length()+" bytes");
+            zos.putNextEntry(new ZipEntry(filePath));
+            byte[] buf = new byte[1024];
+            int length;
+            while((length = fis.read(buf)) >= 0) {
+                zos.write(buf, 0, length);
             }
             zos.closeEntry();
             fis.close();

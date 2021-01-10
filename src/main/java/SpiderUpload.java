@@ -238,7 +238,11 @@ public final class SpiderUpload {
                 finalDir = finalDir.concat(".zip");
             }
             if (fileSize > 2000000000) {
-
+                if (finalDir.contains(".zip")) {
+                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                    System.out.println(TEXT_PURPLE+" file still bigger than 2GB after zipping ..."
+                            +TEXT_RESET+"new size: "+fileSize+" bytes");
+                }
                 //confirm if upload of above 2,048 GB will take place
                 if (file.length() > MAX.longValueExact()) {
                     Scanner myObj = new Scanner(System.in);
@@ -255,6 +259,9 @@ public final class SpiderUpload {
                     parallelUpload(dir, file, finalDir);
                 }
             } else {
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(TEXT_PURPLE+" new file size after zipping: "
+                        +TEXT_RESET+fileSize+" bytes");
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
                 UploadObject upload = new UploadObject();
