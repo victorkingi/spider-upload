@@ -231,13 +231,18 @@ public final class SpiderUpload {
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
             BigInteger MAX = new BigInteger("100000000000");
+            ZipFile.ZipResult isZippedData;
             long fileSize = file.length();
 
             if (fileSize > 2000000000) {
                 ZipFile zipFile = new ZipFile();
-                fileSize = zipFile.zipFile(file.getCanonicalPath());
-                dir = dir.concat(".my.zip");
-                finalDir = finalDir.concat(".my.zip");
+                isZippedData = zipFile.zipFile(file.getCanonicalPath());
+                if (isZippedData.getPath() != null) {
+                    dir = isZippedData.getPath();
+                    String editDir = dir.replace(":", "");
+                    finalDir = editDir.replace("\\", "/");
+                    fileSize = isZippedData.getSize();
+                }
             }
             if (fileSize > 2000000000) {
                 if (finalDir.contains(".my.zip")) {
