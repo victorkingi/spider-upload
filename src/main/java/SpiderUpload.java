@@ -239,8 +239,6 @@ public final class SpiderUpload {
                 isZippedData = zipFile.zipFile(file.getCanonicalPath());
                 if (isZippedData.getPath() != null) {
                     dir = isZippedData.getPath();
-                    String editDir = dir.replace(":", "");
-                    finalDir = editDir.replace("\\", "/");
                     fileSize = isZippedData.getSize();
                 }
             }
