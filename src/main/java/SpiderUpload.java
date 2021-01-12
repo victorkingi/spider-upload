@@ -180,7 +180,9 @@ public final class SpiderUpload {
                     WatchEvent.Kind<?> kind = event.kind();
                     Path eventPath = (Path)event.context();
                     File current = new File(eventDir.toString()+'/'+eventPath.toString());
-                    if (current.exists() && !current.isDirectory() && !eventPath.toString().contains(".part") && !eventPath.toFile().isDirectory()) {
+                    if (current.exists() && !current.isDirectory() && !eventPath.toString().contains(".part")
+                            && !eventPath.toFile().isDirectory()
+                            && !eventPath.toString().contains(".my.zip")) {
                         checkForChanges(eventDir, kind, eventPath, current);
                     }
                 }
@@ -234,11 +236,11 @@ public final class SpiderUpload {
             if (fileSize > 2000000000) {
                 ZipFile zipFile = new ZipFile();
                 fileSize = zipFile.zipFile(file.getCanonicalPath());
-                dir = dir.concat(".zip");
-                finalDir = finalDir.concat(".zip");
+                dir = dir.concat(".my.zip");
+                finalDir = finalDir.concat(".my.zip");
             }
             if (fileSize > 2000000000) {
-                if (finalDir.contains(".zip")) {
+                if (finalDir.contains(".my.zip")) {
                     System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                     System.out.println(TEXT_PURPLE+" file still bigger than 2GB after zipping ..."
                             +TEXT_RESET+"new size: "+fileSize+" bytes");
@@ -259,15 +261,17 @@ public final class SpiderUpload {
                     parallelUpload(dir, file, finalDir);
                 }
             } else {
-                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                System.out.println(TEXT_PURPLE+" new file size after zipping: "
-                        +TEXT_RESET+fileSize+" bytes");
+                if (finalDir.contains(".my.zip")) {
+                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                    System.out.println(TEXT_PURPLE+" new file size after zipping: "
+                            +TEXT_RESET+fileSize+" bytes");
+                }
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
                 UploadObject upload = new UploadObject();
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalDir, dir);
             }
-            if (dir.contains(".zip")) {
+            if (dir.contains(".my.zip")) {
                 File uploaded = new File(dir);
                 assert uploaded.delete();
             }

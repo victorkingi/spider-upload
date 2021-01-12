@@ -38,7 +38,7 @@ public class UploadObject {
         System.out.print(" File ");
         System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
         System.out.print(" uploaded to bucket ");
-        System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
+        System.out.print(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
         System.out.print(" as ");
         System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET+" size(bytes): "+ SpiderUpload.TEXT_PURPLE+uploaded.getSize()+ SpiderUpload.TEXT_RESET);
     }

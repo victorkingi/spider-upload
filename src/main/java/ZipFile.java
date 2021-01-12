@@ -5,7 +5,7 @@ public class ZipFile {
     public long zipFile(String filePath) {
         try {
             File file = new File(filePath);
-            String zipFileName = file.getPath().concat(".zip");
+            String zipFileName = file.getPath().concat(".my.zip");
 
             FileOutputStream fos = new FileOutputStream(zipFileName);
             FileInputStream fis = new FileInputStream(file);
@@ -29,7 +29,7 @@ public class ZipFile {
         } catch (IOException ex) {
             System.err.println("I/O error: " + ex);
         }
-        File zipped = new File(filePath.concat(".zip"));
+        File zipped = new File(filePath.concat(".my.zip"));
         return zipped.length();
     }
 }
