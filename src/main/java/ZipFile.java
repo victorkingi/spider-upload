@@ -1,5 +1,6 @@
 import javax.swing.filechooser.FileSystemView;
 import java.io.*;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.zip.*;
 
@@ -8,18 +9,14 @@ public class ZipFile {
         private final long size;
         private final String path;
 
-        public ZipResult(final Long size, final String path) {
+        private ZipResult(final long size, final String path) {
             this.size = size;
             this.path = path;
         }
 
-        public String getPath() {
-            return path;
-        }
+        public String getPath() { return path; }
 
-        public long getSize() {
-            return size;
-        }
+        public long getSize() { return size; }
     }
     public ZipResult zipFile(String filePath) {
         try {
@@ -47,7 +44,7 @@ public class ZipFile {
                 System.out.println(SpiderUpload.TEXT_YELLOW+" no available disk space for zipping ..."
                         +SpiderUpload.TEXT_RESET+SpiderUpload.TEXT_GREEN+filePath
                         +SpiderUpload.TEXT_RESET+" too big size: "+file.length()/1073741824+" GB");
-                return new ZipResult(0L, null);
+
             } else {
                 Scanner myObj = new Scanner(System.in);
                 System.out.println("Choose preferred temp drive? (Enter a number)");
@@ -60,19 +57,33 @@ public class ZipFile {
                     if (prompt.equals(drive.getKey().toString())) {
                         found = true;
                         File newDir = new File(drive.getValue().concat("\\backup-temp"));
-                        assert newDir.exists() || newDir.mkdirs();
-                        zipFileName = newDir.getCanonicalPath().concat("\\").concat(file.getPath()).concat(".my.zip");
+                        boolean created;
+                        if (!newDir.exists()) {
+                            created = newDir.mkdirs();
+                        } else {
+                            created = true;
+                        }
+                        if (created) {
+                            zipFileName = newDir.getCanonicalPath().concat("\\").concat(file.getName()).concat(".my.zip");
+                        }
                     }
                 }
                 var defaultDrive = availableDrives.entrySet().stream().findFirst();
                 if (!found && defaultDrive.isPresent()) {
                     System.out.println("No drive selected, proceeding with (default) "+defaultDrive.get().getValue());
                     File newDir = new File(defaultDrive.get().getValue().concat("\\backup-temp"));
-                    assert newDir.exists() || newDir.mkdirs();
-                    zipFileName = newDir.getCanonicalPath().concat("\\").concat(file.getPath()).concat(".my.zip");
+                    boolean created;
+                    if (!newDir.exists()) {
+                        created = newDir.mkdirs();
+                    } else {
+                        created = true;
+                    }
+                    if (created) {
+                        zipFileName = newDir.getCanonicalPath().concat("\\").concat(file.getName()).concat(".my.zip");
+                    }
                 }
 
-                if (zipFileName != null) {
+                if (zipFileName != null && !(new File(zipFileName).exists())) {
                     FileOutputStream fos = new FileOutputStream(zipFileName);
                     FileInputStream fis = new FileInputStream(file);
                     ZipOutputStream zos = new ZipOutputStream(fos);
@@ -83,13 +94,27 @@ public class ZipFile {
                     zos.putNextEntry(new ZipEntry(filePath));
                     byte[] buf = new byte[8192];
                     int length;
+                    double percent;
+                    double counter = 0;
+                    DecimalFormat df = new DecimalFormat("###.###");
                     while((length = fis.read(buf)) >= 0) {
                         zos.write(buf, 0, length);
+                        counter += 8192;
+                        percent = (counter/file.length()) * 100.000;
+                        System.out.print("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
+                        System.out.print(df.format(percent)+" % complete");
                     }
+                    System.out.println();
                     zos.closeEntry();
                     fis.close();
                     zos.close();
                     File zipped = new File(zipFileName);
+                    return new ZipResult(zipped.length(), zipped.getCanonicalPath());
+                } else if (zipFileName != null && (new File(zipFileName).exists())) {
+                    File zipped = new File(zipFileName);
+                    System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
+                    System.out.println(SpiderUpload.TEXT_PURPLE+" zip file already created ..."
+                            +SpiderUpload.TEXT_RESET+SpiderUpload.TEXT_GREEN+zipFileName+SpiderUpload.TEXT_RESET+" size: "+zipped.length()+" bytes");
                     return new ZipResult(zipped.length(), zipped.getCanonicalPath());
                 }
             }

@@ -19,12 +19,19 @@ public class Main {
                     && !test.getName().contentEquals("WindowsApps")
                     && !test.getName().contentEquals("WpSystem");
         });
-        assert tempDirectories != null;
-        List<String> temp = Arrays.asList(tempDirectories);
-        Map<String, Long> cache = new HashMap<>();
-        ImmutableList<String> directories = ImmutableList.<String>builder()
-                .addAll(temp).build();
-        SpiderUpload start = new SpiderUpload();
-        start.build(cache, mainDir, directories, extraPath);
+        if (tempDirectories == null) {
+            try {
+                throw new Exception("No directories found");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            List<String> temp = Arrays.asList(tempDirectories);
+            Map<String, Long> cache = new HashMap<>();
+            ImmutableList<String> directories = ImmutableList.<String>builder()
+                    .addAll(temp).build();
+            SpiderUpload start = new SpiderUpload();
+            start.build(cache, mainDir, directories, extraPath);
+        }
     }
 }

@@ -58,10 +58,14 @@ public final class SpiderUpload {
                     selected.add(directory);
                     String usable = mainDir.concat(directory);
                     Path usePath = Paths.get(usable);
-                    traverseAllSubDirectories(usePath);
+                   // traverseAllSubDirectories(usePath);
                 }
             }
-            traverseAllSubDirectories(diffDrive);
+            try {
+                traverseAllSubDirectories(diffDrive);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             System.out.println(TEXT_GREEN+"✅   : Done!"+TEXT_RESET);
 
             for (String select : selected) {
@@ -93,7 +97,7 @@ public final class SpiderUpload {
             return count;
         }
 
-        private void traverseAllSubDirectories(final Path p) {
+        private void traverseAllSubDirectories(final Path p) throws Exception {
             directoryCount = 0;
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
             System.out.print(" Counting subdirectories of ");
@@ -118,7 +122,9 @@ public final class SpiderUpload {
             System.out.print(" Dispersing spiders for ");
             System.out.print(TEXT_GREEN+p+TEXT_RESET);
             System.out.println(" might take a while...");
-            assert stream != null;
+            if (stream == null) {
+                throw new Exception("No directories returned after walking!");
+            }
             stream.forEach((dirName) -> {
                 Thread myThread = new Thread(() -> spiderWatch(dirName));
                 myThread.start();
@@ -136,7 +142,7 @@ public final class SpiderUpload {
                     if (!basicFileAttributes.isDirectory() && !myFile.getName().contains(".part")) {
                         try {
                             refreshCacheData(myFile);
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
@@ -170,7 +176,7 @@ public final class SpiderUpload {
         }
 
         private void listenForEvents(final WatchService service,
-                                     final Map<WatchKey, Path> keyMap) throws InterruptedException, IOException {
+                                     final Map<WatchKey, Path> keyMap) throws Exception {
             WatchKey watchKey;
             do {
                 watchKey = service.take();
@@ -191,7 +197,7 @@ public final class SpiderUpload {
         }
 
         private void checkForChanges(final Path eventDir, final WatchEvent.Kind<?> kind,
-                                     final Path eventPath, final File current) throws IOException {
+                                     final Path eventPath, final File current) throws Exception {
             boolean set = false;
 
             for (Map.Entry<String, Long> val : cache.entrySet()) {
@@ -210,7 +216,7 @@ public final class SpiderUpload {
         }
 
         private void handleAllUpdates(final Path eventDir, final WatchEvent.Kind<?> kind,
-                                      final Path eventPath, final File current, String key) throws IOException {
+                                      final Path eventPath, final File current, String key) throws Exception {
             cache.put(key, current.lastModified());
             updateCacheFile(key, current.lastModified());
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
@@ -225,9 +231,12 @@ public final class SpiderUpload {
             }
         }
 
-        private void uploadToCloud(String dir) throws IOException {
+        private void uploadToCloud(String dir) throws Exception {
             File file = new File(dir);
-            assert !file.isDirectory();
+            boolean isDir = file.isDirectory();
+            if (isDir) {
+                throw new Exception("object is a directory!");
+            }
             String editedDir = dir.replace(":", "");
             String finalDir = editedDir.replace("\\", "/");
             BigInteger MAX = new BigInteger("100000000000");
@@ -240,6 +249,7 @@ public final class SpiderUpload {
                 if (isZippedData.getPath() != null) {
                     dir = isZippedData.getPath();
                     fileSize = isZippedData.getSize();
+                    finalDir = finalDir.concat(".my.zip");
                 }
             }
             if (fileSize > 2000000000) {
@@ -248,20 +258,20 @@ public final class SpiderUpload {
                     System.out.println(TEXT_PURPLE+" file still bigger than 2GB after zipping ..."
                             +TEXT_RESET+"new size: "+fileSize+" bytes");
                 }
-                //confirm if upload of above 2,048 GB will take place
-                if (file.length() > MAX.longValueExact()) {
+                //confirm if upload of above 100 GB will take place
+                if (fileSize > MAX.longValueExact()) {
                     Scanner myObj = new Scanner(System.in);
                     System.out.println("File bigger than 100 GB, are you sure you wish to continue?"+TEXT_GREEN+"TYPE Y/N"+TEXT_RESET);
                     String prompt = myObj.nextLine();
 
                     if (prompt.equals("Y")) {
-                        parallelUpload(dir, file, finalDir);
+                        parallelUpload(dir, finalDir);
                     } else {
                         System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                         System.out.println(TEXT_YELLOW+" user skipped upload of "+TEXT_RESET+TEXT_GREEN+dir+TEXT_RESET);
                     }
                 } else {
-                    parallelUpload(dir, file, finalDir);
+                    parallelUpload(dir, finalDir);
                 }
             } else {
                 if (finalDir.contains(".my.zip")) {
@@ -276,12 +286,20 @@ public final class SpiderUpload {
             }
             if (dir.contains(".my.zip")) {
                 File uploaded = new File(dir);
-                assert uploaded.delete();
+                boolean deleted = uploaded.delete();
+                if (!deleted) {
+                    try {
+                        throw new Exception("Zip file failed deletion");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
 
         //critical section assertions made to confirm state of cloud storage and local
-        private void parallelUpload(String dir, File file, String finalDir) throws IOException {
+        private void parallelUpload(String dir, String finalDir) throws IOException {
+            File file = new File(dir);
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
             System.out.println(TEXT_PURPLE+" uploading..."+TEXT_RESET);
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
@@ -346,7 +364,13 @@ public final class SpiderUpload {
                 }
             }
             //assert file was uploaded
-            assert correct && uploaded && fileSizeCheck;
+            if (!(correct && uploaded && fileSizeCheck)) {
+                try {
+                    throw new Exception("Upload had an error!");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
 
             divider = 32;
         }
@@ -380,7 +404,14 @@ public final class SpiderUpload {
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(" done writing, uploading... "+TEXT_GREEN+newDir+TEXT_RESET+" size(bytes): "+TEXT_PURPLE+temp.length()+TEXT_RESET);
                 upload.uploadObject(PROJECT_ID, BUCKET_NAME, finalPart, newDir);
-                assert temp.delete();
+                boolean deleted = temp.delete();
+                if (!deleted) {
+                    try {
+                        throw new Exception("Deletion had an error!");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(" done uploading and cleaned directory... "+TEXT_GREEN+newDir+TEXT_RESET);
             }
@@ -424,7 +455,7 @@ public final class SpiderUpload {
             return finalArr;
         }
 
-        private void refreshCacheData(final File myFile) throws IOException {
+        private void refreshCacheData(final File myFile) throws Exception {
             boolean containsFile = false;
             Map<String, Long> toAdd = new HashMap<>();
 

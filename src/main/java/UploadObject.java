@@ -32,14 +32,21 @@ public class UploadObject {
             System.out.print(" failed upload and threw error ");
             System.out.println(SpiderUpload.TEXT_RED+e.toString()+SpiderUpload.TEXT_RESET);
         }
-        assert uploaded != null;
-
-        System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
-        System.out.print(" File ");
-        System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
-        System.out.print(" uploaded to bucket ");
-        System.out.print(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
-        System.out.print(" as ");
-        System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET+" size(bytes): "+ SpiderUpload.TEXT_PURPLE+uploaded.getSize()+ SpiderUpload.TEXT_RESET);
+        if (uploaded == null) {
+            try {
+                throw new Exception("upload error!");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
+            System.out.print(" File ");
+            System.out.print(SpiderUpload.TEXT_GREEN+filePath+SpiderUpload.TEXT_RESET);
+            System.out.print(" uploaded to bucket ");
+            System.out.print(SpiderUpload.TEXT_GREEN+bucketName+SpiderUpload.TEXT_RESET);
+            System.out.print(" as ");
+            System.out.println(SpiderUpload.TEXT_GREEN+objectName+SpiderUpload.TEXT_RESET
+                    +" size(bytes): "+ SpiderUpload.TEXT_PURPLE+uploaded.getSize()+ SpiderUpload.TEXT_RESET);
+        }
     }
 }
