@@ -2,6 +2,8 @@ import com.google.common.collect.ImmutableList;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Stream;
@@ -232,6 +234,7 @@ public final class SpiderUpload {
         }
 
         private void uploadToCloud(String dir) throws Exception {
+            String originalDir = dir;
             File file = new File(dir);
             boolean isDir = file.isDirectory();
             if (isDir) {
@@ -249,7 +252,9 @@ public final class SpiderUpload {
                 if (isZippedData.getPath() != null) {
                     dir = isZippedData.getPath();
                     fileSize = isZippedData.getSize();
-                    finalDir = finalDir.concat(".my.zip");
+                    String _d = originalDir.replace(":", "");
+                    String objectName = _d.replace("\\", "/");
+                    finalDir = objectName.concat(".my.zip");
                 }
             }
             if (fileSize > 2000000000) {
@@ -315,10 +320,17 @@ public final class SpiderUpload {
 
             //compose the uploads
             if (objects.length > 32) {
-                int requestNo = objects.length/32;
-                String[] finalCombine = new String[requestNo];
+                double requestNo = Math.ceil(objects.length/32.0);
+                String[] finalCombine = new String[(int) requestNo];
+                boolean isOdd = false;
+                if (objects.length % 32 != 0) {
+                    isOdd = true;
+                }
                 for (int i = 0; i < requestNo; i++) {
                     String[] temp = Arrays.copyOfRange(objects, i*32, (i+1)*32);
+                    if (isOdd && i == requestNo - 1) {
+                        temp = Arrays.copyOfRange(objects, i*32, objects.length);
+                    }
                     ComposeObject compose = new ComposeObject();
                     compose.composeObject(BUCKET_NAME, temp, finalDir +".final"+i, PROJECT_ID);
                     finalCombine[i] = finalDir +".final"+i;
@@ -385,7 +397,7 @@ public final class SpiderUpload {
         private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload)
                 throws IOException {
             byte[] buf = new byte[(int)(file.length()/divider)];
-            String[] objects = new String[divider];
+            String[] objects = new String[divider+1];
             int read = 0;
             while((is.read(buf)) > 0) {
                 String newDir = dir +".part"+read;
@@ -463,6 +475,7 @@ public final class SpiderUpload {
                 try {
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() != val.getValue()) {
+                        containsFile = true;
                         toAdd.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
@@ -503,10 +516,12 @@ public final class SpiderUpload {
         }
         private void updateCacheFile(String key, Long val) {
             try {
+                String lastKey = key.concat("   :");
                 FileWriter myWriter = new FileWriter("cache.txt", true);
-                myWriter.append(key).append("   :").append(String.valueOf(val))
+                myWriter.append(lastKey).append(String.valueOf(val))
                         .append("\n");
                 myWriter.close();
+
             } catch (IOException e) {
                 System.out.println(TEXT_RED+"An error occurred."+TEXT_RESET);
                 e.printStackTrace();
@@ -522,7 +537,8 @@ public final class SpiderUpload {
                     cache.put(arr[0], Long.valueOf(arr[1]));
                 }
                 myReader.close();
-            } catch (FileNotFoundException e) {
+                new FileOutputStream("cache.txt").close();
+            } catch (Exception e) {
                 System.out.println("An error occurred.");
                 e.printStackTrace();
             }
