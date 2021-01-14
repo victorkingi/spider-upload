@@ -23,7 +23,7 @@ public class ComposeObject {
 
         // The ID to give the new composite object
         // String targetObjectName = "new-composite-object-name";
-        if (objects.length != 32) {
+        if (objects.length > 32) {
             try {
                 throw new Exception("Object number greater than 32!");
             } catch (Exception e) {

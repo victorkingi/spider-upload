@@ -316,7 +316,7 @@ public final class SpiderUpload {
             findPerfectDivider(file.length());
             System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
             System.out.println(" file will be divided "+divider+" times...");
-            String[] objects = writePartToTempFile(dir, file, is, upload);
+            String[] objects = writePartToTempFile(dir, file, is, upload, finalDir);
 
             //compose the uploads
             if (objects.length > 32) {
@@ -353,37 +353,6 @@ public final class SpiderUpload {
                 //delete temp files in cloud
                 deleteAllTempObjects(objects);
             }
-            ListObjects listObjects = new ListObjects();
-            Map<String, Long> listing = listObjects.listObjects(PROJECT_ID, BUCKET_NAME);
-            boolean correct = true;
-            boolean uploaded = false;
-            boolean fileSizeCheck = false;
-            for (Map.Entry<String, Long> blob : listing.entrySet()) {
-                int index = blob.getKey().lastIndexOf('/');
-                String parent = blob.getKey().substring(0, index+1);
-
-                if (parent.equals(finalDir.substring(0, index+1))) {
-                    if (blob.getKey().contains(".part")
-                            || blob.getKey().contains(".final")) {
-                        correct = false;
-                    }
-                    if (blob.getKey().equals(finalDir)) {
-                        uploaded = true;
-                        if (blob.getValue() == file.length()) {
-                            fileSizeCheck = true;
-                        }
-                    }
-                }
-            }
-            //assert file was uploaded
-            if (!(correct && uploaded && fileSizeCheck)) {
-                try {
-                    throw new Exception("Upload had an error!");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
             divider = 32;
         }
 
@@ -394,15 +363,14 @@ public final class SpiderUpload {
             }
         }
 
-        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload)
+        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload, String finalDir)
                 throws IOException {
             byte[] buf = new byte[(int)(file.length()/divider)];
             String[] objects = new String[divider+1];
             int read = 0;
             while((is.read(buf)) > 0) {
                 String newDir = dir +".part"+read;
-                String edit = newDir.replace(":", "");
-                String finalPart = edit.replace("\\", "/");
+                String finalPart = finalDir.concat(".part"+read);
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(" writing to... "+TEXT_GREEN+newDir+TEXT_RESET);
                 FileOutputStream os = new FileOutputStream(newDir);
@@ -475,7 +443,6 @@ public final class SpiderUpload {
                 try {
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() != val.getValue()) {
-                        containsFile = true;
                         toAdd.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
