@@ -9,20 +9,7 @@ public class ComposeObject {
             String[] objects,
             String targetObjectName,
             String projectId) {
-        // The ID of your GCP project
-        // String projectId = "your-project-id";
 
-        // The ID of your GCS bucket
-        // String bucketName = "your-unique-bucket-name";
-
-        // The ID of the first GCS object to compose
-        // String firstObjectName = "your-first-object-name";
-
-        // The ID of the second GCS object to compose
-        // String secondObjectName = "your-second-object-name";
-
-        // The ID to give the new composite object
-        // String targetObjectName = "new-composite-object-name";
         if (objects.length > 32) {
             try {
                 throw new Exception("Object number greater than 32!");

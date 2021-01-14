@@ -83,7 +83,7 @@ public class ZipFile {
                     }
                 }
 
-                if (zipFileName != null && !(new File(zipFileName).exists())) {
+                if (zipFileName != null) {
                     FileOutputStream fos = new FileOutputStream(zipFileName);
                     FileInputStream fis = new FileInputStream(file);
                     ZipOutputStream zos = new ZipOutputStream(fos);
@@ -109,12 +109,6 @@ public class ZipFile {
                     fis.close();
                     zos.close();
                     File zipped = new File(zipFileName);
-                    return new ZipResult(zipped.length(), zipped.getCanonicalPath());
-                } else if (zipFileName != null && (new File(zipFileName).exists())) {
-                    File zipped = new File(zipFileName);
-                    System.out.print(SpiderUpload.TEXT_CYAN+"i    :"+ SpiderUpload.TEXT_RESET);
-                    System.out.println(SpiderUpload.TEXT_PURPLE+" zip file already created ..."
-                            +SpiderUpload.TEXT_RESET+SpiderUpload.TEXT_GREEN+zipFileName+SpiderUpload.TEXT_RESET+" size: "+zipped.length()+" bytes");
                     return new ZipResult(zipped.length(), zipped.getCanonicalPath());
                 }
             }

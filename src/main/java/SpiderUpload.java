@@ -2,8 +2,6 @@ import com.google.common.collect.ImmutableList;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Stream;
@@ -60,7 +58,11 @@ public final class SpiderUpload {
                     selected.add(directory);
                     String usable = mainDir.concat(directory);
                     Path usePath = Paths.get(usable);
-                   // traverseAllSubDirectories(usePath);
+                    try {
+                        traverseAllSubDirectories(usePath);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             try {
@@ -363,7 +365,8 @@ public final class SpiderUpload {
             }
         }
 
-        private String[] writePartToTempFile(String dir, File file, FileInputStream is, UploadObject upload, String finalDir)
+        private String[] writePartToTempFile(String dir, File file, FileInputStream is,
+                                             UploadObject upload, String finalDir)
                 throws IOException {
             byte[] buf = new byte[(int)(file.length()/divider)];
             String[] objects = new String[divider+1];
