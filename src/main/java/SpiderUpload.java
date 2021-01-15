@@ -440,22 +440,28 @@ public final class SpiderUpload {
 
         private void refreshCacheData(final File myFile) throws Exception {
             Map<String, Long> toAdd = new HashMap<>();
+            boolean cacheEmpty = true;
 
             for (Map.Entry<String, Long> val : cache.entrySet()) {
                 try {
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() != val.getValue()) {
+                        cacheEmpty = false;
                         toAdd.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
                     } else if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() == val.getValue()) {
+                        cacheEmpty = false;
                         updateCacheFile(val.getKey(), myFile.lastModified());
                     }
 
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+            if (cacheEmpty) {
+                updateCacheFile(myFile.getCanonicalPath(), myFile.lastModified());
             }
 
             //prevents java.util.ConcurrentModificationException
