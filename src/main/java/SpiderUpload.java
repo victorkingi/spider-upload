@@ -439,7 +439,6 @@ public final class SpiderUpload {
         }
 
         private void refreshCacheData(final File myFile) throws Exception {
-            boolean containsFile = false;
             Map<String, Long> toAdd = new HashMap<>();
 
             for (Map.Entry<String, Long> val : cache.entrySet()) {
@@ -449,22 +448,19 @@ public final class SpiderUpload {
                         toAdd.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
+                    } else if (myFile.getCanonicalPath().equals(val.getKey())
+                            && myFile.lastModified() == val.getValue()) {
+                        updateCacheFile(val.getKey(), myFile.lastModified());
                     }
-                    if (myFile.getCanonicalPath().equals(val.getKey())) {
-                        containsFile = true;
-                    }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-            if (!containsFile) {
-                cache.put(myFile.getCanonicalPath(), myFile.lastModified());
-                updateCacheFile(myFile.getCanonicalPath(), myFile.lastModified());
-            } else {
-                //prevents java.util.ConcurrentModificationException
-                for (Map.Entry<String, Long> val : toAdd.entrySet()) {
-                    cache.put(val.getKey(), val.getValue());
-                }
+
+            //prevents java.util.ConcurrentModificationException
+            for (Map.Entry<String, Long> val : toAdd.entrySet()) {
+                cache.put(val.getKey(), val.getValue());
             }
         }
         private void createCache() {
