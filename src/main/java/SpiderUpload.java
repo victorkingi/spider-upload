@@ -1,4 +1,5 @@
 import com.google.common.collect.ImmutableList;
+import org.apache.commons.io.FileUtils;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -169,7 +170,6 @@ public final class SpiderUpload {
                 Map<WatchKey, Path> keyMap = new HashMap<>();
                 keyMap.put(dir.register(service,
                         StandardWatchEventKinds.ENTRY_CREATE,
-                        StandardWatchEventKinds.ENTRY_DELETE,
                         StandardWatchEventKinds.ENTRY_MODIFY),
                         dir);
                 listenForEvents(service, keyMap);
@@ -190,10 +190,21 @@ public final class SpiderUpload {
                     WatchEvent.Kind<?> kind = event.kind();
                     Path eventPath = (Path)event.context();
                     File current = new File(eventDir.toString()+'/'+eventPath.toString());
-                    if (current.exists() && !current.isDirectory() && !eventPath.toString().contains(".part")
-                            && !eventPath.toFile().isDirectory()
+                    if (current.exists() && !eventPath.toString().contains(".part")
                             && !eventPath.toString().contains(".my.zip")) {
-                        checkForChanges(eventDir, kind, eventPath, current);
+                        String dest = "D:\\blender\\projects\\all blends\\".concat(current.getName());
+
+                        if (current.isDirectory() && eventDir.toString().equals("D:\\blender\\projects")
+                                && kind.toString().equals("ENTRY_CREATE")) {
+                            Thread myThread = new Thread(() -> spiderWatch(current.toPath()));
+                            myThread.start();
+                        } else if (current.getName().endsWith(".blend") && current.exists()
+                                && !current.equals(new File(dest))) {
+                            isBlendThenCopy(current, new File(dest));
+                            checkForChanges(eventDir, kind, eventPath, current);
+                        } else if (!current.isDirectory() && current.exists()) {
+                            checkForChanges(eventDir, kind, eventPath, current);
+                        }
                     }
                 }
 
@@ -221,11 +232,16 @@ public final class SpiderUpload {
 
         private void handleAllUpdates(final Path eventDir, final WatchEvent.Kind<?> kind,
                                       final Path eventPath, final File current, String key) throws Exception {
-            cache.put(key, current.lastModified());
-            updateCacheFile(key, current.lastModified());
-            System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-            System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
-            uploadToCloud(key);
+            if (!eventPath.toString().endsWith(".blend@")) {
+                cache.put(key, current.lastModified());
+                updateCacheFile(key, current.lastModified());
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
+                uploadToCloud(key);
+            } else {
+                System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
+                System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + eventPath + ": "+ TEXT_RESET +TEXT_YELLOW+ "temp blend file skipped"+TEXT_RESET);
+            }
         }
 
         //finds suitable divisions for parallel upload
@@ -450,10 +466,12 @@ public final class SpiderUpload {
                         toAdd.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
+                        break;
                     } else if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() == val.getValue()) {
                         cacheEmpty = false;
                         updateCacheFile(val.getKey(), myFile.lastModified());
+                        break;
                     }
 
                 } catch (IOException e) {
@@ -514,6 +532,10 @@ public final class SpiderUpload {
                 System.out.println("An error occurred.");
                 e.printStackTrace();
             }
+        }
+
+        private void isBlendThenCopy(File source, File dest) throws IOException {
+            FileUtils.copyFile(source, dest);
         }
 
     }
