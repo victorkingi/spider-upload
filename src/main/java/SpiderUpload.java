@@ -3,6 +3,7 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.channels.FileLock;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Stream;
@@ -50,7 +51,7 @@ public final class SpiderUpload {
                         || directory.contentEquals("adobe pdf")
                         || directory.contentEquals("adobe photoshop")
                         || directory.contentEquals("adobe premiere")
-                        || directory.contentEquals("blender")
+                          || directory.contentEquals("blender")
                         || directory.contentEquals("Ableton")
                         || directory.contentEquals("patron")
                         || directory.contentEquals("year 2")
@@ -175,7 +176,7 @@ public final class SpiderUpload {
                 listenForEvents(service, keyMap);
 
             } catch (Exception e) {
-                System.err.println(e.getMessage());
+                System.err.println(e.toString());
             }
         }
 
@@ -188,22 +189,38 @@ public final class SpiderUpload {
 
                 for (WatchEvent<?> event : watchKey.pollEvents()) {
                     WatchEvent.Kind<?> kind = event.kind();
-                    Path eventPath = (Path)event.context();
-                    File current = new File(eventDir.toString()+'/'+eventPath.toString());
-                    if (current.exists() && !eventPath.toString().contains(".part")
-                            && !eventPath.toString().contains(".my.zip")) {
-                        String dest = "D:\\blender\\projects\\all blends\\".concat(current.getName());
+                    Path eventPath = (Path) event.context();
+                    File current = new File(eventDir.toString() + '/' + eventPath.toString());
+                    Thread.sleep(2000);
+                    if (current.exists() && !current.isDirectory()) {
+                        System.out.println("Acquiring file lock...");
+                        MutexLock mutexLock = new MutexLock(current.getCanonicalPath());
+                        FileLock lock = mutexLock.getLock();
 
-                        if (current.isDirectory() && eventDir.toString().equals("D:\\blender\\projects")
-                                && kind.toString().equals("ENTRY_CREATE")) {
-                            Thread myThread = new Thread(() -> spiderWatch(current.toPath()));
-                            myThread.start();
-                        } else if (current.getName().endsWith(".blend") && current.exists()
-                                && !current.equals(new File(dest))) {
-                            isBlendThenCopy(current, new File(dest));
-                            checkForChanges(eventDir, kind, eventPath, current);
-                        } else if (!current.isDirectory() && current.exists()) {
-                            checkForChanges(eventDir, kind, eventPath, current);
+                        if (!lock.isShared() && !eventPath.toString().contains(".testfile")
+                                && !eventPath.toString().contains(".fdmdownload")) {
+                            System.out.println("lock acquired!");
+                            //you got a lock, other process is done writing
+                            if (!eventPath.toString().contains(".part")
+                                    && !eventPath.toString().contains(".my.zip")) {
+                                String dest = "D:\\blender\\projects\\all blends\\".concat(current.getName());
+
+                                if (current.isDirectory() && eventDir.toString().equals("D:\\blender\\projects")
+                                        && kind.toString().equals("ENTRY_CREATE")) {
+                                    Thread myThread = new Thread(() -> spiderWatch(current.toPath()));
+                                    myThread.start();
+
+                                } else if (current.getName().endsWith(".blend")
+                                        && !current.equals(new File(dest))) {
+                                    isBlendThenCopy(current, new File(dest));
+                                    handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
+
+                                } else if (!current.isDirectory()) {
+                                    handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
+                                }
+                            }
+                        } else {
+                            System.out.println("lock in use by another process");
                         }
                     }
                 }
@@ -211,29 +228,9 @@ public final class SpiderUpload {
             } while (watchKey.reset());
         }
 
-        private void checkForChanges(final Path eventDir, final WatchEvent.Kind<?> kind,
-                                     final Path eventPath, final File current) throws Exception {
-            boolean set = false;
-
-            for (Map.Entry<String, Long> val : cache.entrySet()) {
-                if (current.getCanonicalPath().equals(val.getKey())) {
-                    set = true;
-                }
-                if (current.getCanonicalPath().equals(val.getKey())
-                        && current.lastModified() != val.getValue()) {
-                    handleAllUpdates(eventDir, kind, eventPath, current, val.getKey());
-                    set = true;
-                }
-            }
-            if (!set) {
-                handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
-            }
-        }
-
         private void handleAllUpdates(final Path eventDir, final WatchEvent.Kind<?> kind,
                                       final Path eventPath, final File current, String key) throws Exception {
             if (!eventPath.toString().endsWith(".blend@")) {
-                cache.put(key, current.lastModified());
                 updateCacheFile(key, current.lastModified());
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
@@ -252,6 +249,7 @@ public final class SpiderUpload {
         }
 
         private void uploadToCloud(String dir) throws Exception {
+            String finalZip = "";
             String originalDir = dir;
             File file = new File(dir);
             boolean isDir = file.isDirectory();
@@ -267,20 +265,32 @@ public final class SpiderUpload {
             if (fileSize > 2000000000) {
                 ZipFile zipFile = new ZipFile();
                 isZippedData = zipFile.zipFile(file.getCanonicalPath());
-                if (isZippedData.getPath() != null) {
+
+                //if after zipping file is less than 2GB execute normal upload, else delete the zip created
+                //and just upload the original big file
+                if (isZippedData.getPath() != null && isZippedData.getSize() < 2000000000) {
                     dir = isZippedData.getPath();
                     fileSize = isZippedData.getSize();
                     String _d = originalDir.replace(":", "");
                     String objectName = _d.replace("\\", "/");
                     finalDir = objectName.concat(".my.zip");
+
+                } else if (isZippedData.getPath() != null) {
+                    finalZip = isZippedData.getPath();
+
+                    File zipTooBig = new File(finalZip);
+                    boolean deleted = zipTooBig.delete();
+                    if (!deleted) {
+                        try {
+                            throw new Exception("Zip file failed deletion");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
+
             }
             if (fileSize > 2000000000) {
-                if (finalDir.contains(".my.zip")) {
-                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                    System.out.println(TEXT_PURPLE+" file still bigger than 2GB after zipping ..."
-                            +TEXT_RESET+"new size: "+fileSize+" bytes");
-                }
                 //confirm if upload of above 100 GB will take place
                 if (fileSize > MAX.longValueExact()) {
                     Scanner myObj = new Scanner(System.in);
@@ -297,7 +307,7 @@ public final class SpiderUpload {
                     parallelUpload(dir, finalDir);
                 }
             } else {
-                if (finalDir.contains(".my.zip")) {
+                if (finalZip.contains(".my.zip")) {
                     System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                     System.out.println(TEXT_PURPLE+" new file size after zipping: "
                             +TEXT_RESET+fileSize+" bytes");
@@ -455,7 +465,7 @@ public final class SpiderUpload {
         }
 
         private void refreshCacheData(final File myFile) throws Exception {
-            Map<String, Long> toAdd = new HashMap<>();
+            Map<String, Long> toRemove = new HashMap<>();
             boolean cacheEmpty = true;
 
             for (Map.Entry<String, Long> val : cache.entrySet()) {
@@ -463,13 +473,14 @@ public final class SpiderUpload {
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() != val.getValue()) {
                         cacheEmpty = false;
-                        toAdd.put(val.getKey(), myFile.lastModified());
+                        toRemove.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
                         break;
                     } else if (myFile.getCanonicalPath().equals(val.getKey())
                             && myFile.lastModified() == val.getValue()) {
                         cacheEmpty = false;
+                        toRemove.put(val.getKey(), myFile.lastModified());
                         updateCacheFile(val.getKey(), myFile.lastModified());
                         break;
                     }
@@ -483,8 +494,8 @@ public final class SpiderUpload {
             }
 
             //prevents java.util.ConcurrentModificationException
-            for (Map.Entry<String, Long> val : toAdd.entrySet()) {
-                cache.put(val.getKey(), val.getValue());
+            for (Map.Entry<String, Long> val : toRemove.entrySet()) {
+                cache.remove(val.getKey());
             }
         }
         private void createCache() {

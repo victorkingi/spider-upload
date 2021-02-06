@@ -7,10 +7,10 @@ import java.util.*;
 public class Main {
 
     public static void main(String[] args) {
-        Path extraPath = Paths.get("E:\\virtualbox");
+        final Path extraPath = Paths.get("E:\\virtualbox");
         final String mainDir = "D:\\";
-        File file = new File(mainDir);
-        String[] tempDirectories = file.list((current, name) -> {
+        final File file = new File(mainDir);
+        final String[] tempDirectories = file.list((current, name) -> {
             File test =  new File(current, name);
             //exclude system directories
             return test.isDirectory()
@@ -26,11 +26,11 @@ public class Main {
                 e.printStackTrace();
             }
         } else {
-            List<String> temp = Arrays.asList(tempDirectories);
-            Map<String, Long> cache = new HashMap<>();
-            ImmutableList<String> directories = ImmutableList.<String>builder()
+            final List<String> temp = Arrays.asList(tempDirectories);
+            final Map<String, Long> cache = new HashMap<>();
+            final ImmutableList<String> directories = ImmutableList.<String>builder()
                     .addAll(temp).build();
-            SpiderUpload start = new SpiderUpload();
+            final SpiderUpload start = new SpiderUpload();
             start.build(cache, mainDir, directories, extraPath);
         }
     }
