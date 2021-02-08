@@ -27,6 +27,7 @@ public final class SpiderUpload {
         private final Path diffDrive;
         private int directoryCount;
         private int divider;
+        private File previousFile;
 
         private MySpiderUpload(final Map<String, Long> cache, final String mainDir,
                                final ImmutableList<String> directories, final Path diffDrive) {
@@ -37,6 +38,7 @@ public final class SpiderUpload {
             this.diffDrive = diffDrive;
             this.directoryCount = 0;
             this.divider = 32;
+            this.previousFile = new File("D:\\");
             executeSpiderUpload();
         }
 
@@ -192,7 +194,13 @@ public final class SpiderUpload {
                     Path eventPath = (Path) event.context();
                     File current = new File(eventDir.toString() + '/' + eventPath.toString());
                     Thread.sleep(2000);
-                    if (current.exists() && !current.isDirectory()) {
+
+                    boolean newBlenderDir = current.isDirectory()
+                            && eventDir.toString().equals("D:\\blender\\projects")
+                            && kind.toString().equals("ENTRY_CREATE");
+
+                    if (current.exists() && !current.isDirectory()
+                            && !previousFile.equals(current)) {
                         System.out.println("Acquiring file lock...");
                         MutexLock mutexLock = new MutexLock(current.getCanonicalPath());
                         FileLock lock = mutexLock.getLock();
@@ -205,23 +213,23 @@ public final class SpiderUpload {
                                     && !eventPath.toString().contains(".my.zip")) {
                                 String dest = "D:\\blender\\projects\\all blends\\".concat(current.getName());
 
-                                if (current.isDirectory() && eventDir.toString().equals("D:\\blender\\projects")
-                                        && kind.toString().equals("ENTRY_CREATE")) {
-                                    Thread myThread = new Thread(() -> spiderWatch(current.toPath()));
-                                    myThread.start();
-
-                                } else if (current.getName().endsWith(".blend")
+                                if (current.getName().endsWith(".blend")
                                         && !current.equals(new File(dest))) {
                                     isBlendThenCopy(current, new File(dest));
                                     handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
 
                                 } else if (!current.isDirectory()) {
                                     handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
+
                                 }
                             }
+                            previousFile = current;
                         } else {
                             System.out.println("lock in use by another process");
                         }
+                    } else if (newBlenderDir) {
+                        Thread myThread = new Thread(() -> spiderWatch(current.toPath()));
+                        myThread.start();
                     }
                 }
 
