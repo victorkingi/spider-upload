@@ -21,7 +21,7 @@ public final class SpiderUpload {
     public static final String BUCKET_NAME = "blender-ableton";
 
     private static final class MySpiderUpload {
-        private final Map<String, Long> cache;
+        private final Map<String, String> cache;
         private final String mainDir;
         private final ImmutableList<String> directories;
         private final Path diffDrive;
@@ -29,7 +29,7 @@ public final class SpiderUpload {
         private int divider;
         private File previousFile;
 
-        private MySpiderUpload(final Map<String, Long> cache, final String mainDir,
+        private MySpiderUpload(final Map<String, String> cache, final String mainDir,
                                final ImmutableList<String> directories, final Path diffDrive) {
             this.cache = cache;
             this.mainDir = mainDir;
@@ -216,10 +216,10 @@ public final class SpiderUpload {
                                 if (current.getName().endsWith(".blend")
                                         && !current.equals(new File(dest))) {
                                     isBlendThenCopy(current, new File(dest));
-                                    handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
+                                    handleAllUpdates(eventDir, kind, eventPath, current.getCanonicalPath());
 
                                 } else if (!current.isDirectory()) {
-                                    handleAllUpdates(eventDir, kind, eventPath, current, current.getCanonicalPath());
+                                    handleAllUpdates(eventDir, kind, eventPath, current.getCanonicalPath());
 
                                 }
                             }
@@ -237,9 +237,12 @@ public final class SpiderUpload {
         }
 
         private void handleAllUpdates(final Path eventDir, final WatchEvent.Kind<?> kind,
-                                      final Path eventPath, final File current, String key) throws Exception {
+                                      final Path eventPath, String key) throws Exception {
+            Hashcode hashcode = new Hashcode(key);
+            String fileHash = hashcode.calculateFileKey();
+
             if (!eventPath.toString().endsWith(".blend@")) {
-                updateCacheFile(key, current.lastModified());
+                updateCacheFile(key, fileHash);
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
                 uploadToCloud(key);
@@ -473,36 +476,31 @@ public final class SpiderUpload {
         }
 
         private void refreshCacheData(final File myFile) throws Exception {
-            Map<String, Long> toRemove = new HashMap<>();
+            Map<String, String> toRemove = new HashMap<>();
             boolean cacheEmpty = true;
+            Hashcode hashcode = new Hashcode(myFile.getCanonicalPath());
+            String fileHash = hashcode.calculateFileKey();
 
-            for (Map.Entry<String, Long> val : cache.entrySet()) {
+            for (Map.Entry<String, String> val : cache.entrySet()) {
                 try {
+                    toRemove.put(val.getKey(), fileHash);
+                    updateCacheFile(val.getKey(), fileHash);
                     if (myFile.getCanonicalPath().equals(val.getKey())
-                            && myFile.lastModified() != val.getValue()) {
+                            && !fileHash.equals(val.getValue())) {
                         cacheEmpty = false;
-                        toRemove.put(val.getKey(), myFile.lastModified());
-                        updateCacheFile(val.getKey(), myFile.lastModified());
                         uploadToCloud(myFile.getCanonicalPath());
                         break;
-                    } else if (myFile.getCanonicalPath().equals(val.getKey())
-                            && myFile.lastModified() == val.getValue()) {
-                        cacheEmpty = false;
-                        toRemove.put(val.getKey(), myFile.lastModified());
-                        updateCacheFile(val.getKey(), myFile.lastModified());
-                        break;
                     }
-
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
             if (cacheEmpty) {
-                updateCacheFile(myFile.getCanonicalPath(), myFile.lastModified());
+                updateCacheFile(myFile.getCanonicalPath(), fileHash);
             }
 
             //prevents java.util.ConcurrentModificationException
-            for (Map.Entry<String, Long> val : toRemove.entrySet()) {
+            for (Map.Entry<String, String> val : toRemove.entrySet()) {
                 cache.remove(val.getKey());
             }
         }
@@ -523,11 +521,11 @@ public final class SpiderUpload {
                 e.printStackTrace();
             }
         }
-        private void updateCacheFile(String key, Long val) {
+        private void updateCacheFile(String key, String val) {
             try {
                 String lastKey = key.concat("   :");
                 FileWriter myWriter = new FileWriter("cache.txt", true);
-                myWriter.append(lastKey).append(String.valueOf(val))
+                myWriter.append(lastKey).append(val)
                         .append("\n");
                 myWriter.close();
 
@@ -543,7 +541,7 @@ public final class SpiderUpload {
                 while (myReader.hasNextLine()) {
                     String data = myReader.nextLine();
                     String[] arr = data.split(" {3}:");
-                    cache.put(arr[0], Long.valueOf(arr[1]));
+                    cache.put(arr[0], arr[1]);
                 }
                 myReader.close();
                 new FileOutputStream("cache.txt").close();
@@ -559,7 +557,7 @@ public final class SpiderUpload {
 
     }
 
-    public final void build(final Map<String, Long> cache, final String mainDir,
+    public final void build(final Map<String, String> cache, final String mainDir,
                                      final ImmutableList<String> directories,
                                      final Path diffDrive) {
         new MySpiderUpload(cache, mainDir, directories, diffDrive);

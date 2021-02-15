@@ -27,7 +27,7 @@ public class Main {
             }
         } else {
             final List<String> temp = Arrays.asList(tempDirectories);
-            final Map<String, Long> cache = new HashMap<>();
+            final Map<String, String> cache = new HashMap<>();
             final ImmutableList<String> directories = ImmutableList.<String>builder()
                     .addAll(temp).build();
             final SpiderUpload start = new SpiderUpload();
