@@ -1,14 +1,8 @@
-import org.apache.commons.codec.digest.DigestUtils;
-
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 
 public class Hashcode {
     private final String fileLocation;
@@ -35,11 +29,6 @@ public class Hashcode {
             byte[] buffer = new byte[buff];
             long read = 0;
             long offset = file.length();
-
-            if (offset < 2000000000) {
-                return DigestUtils.sha256Hex(Arrays.toString(Files
-                        .readAllBytes(Paths.get(new File(fileLocation).toURI()))));
-            }
 
             int unitsize;
             while (read < offset) {
