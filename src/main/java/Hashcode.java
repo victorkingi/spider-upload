@@ -24,7 +24,7 @@ public class Hashcode {
         int buff = 8192;
         try {
             RandomAccessFile file = new RandomAccessFile(fileLocation, "r");
-            MessageDigest hashSum = MessageDigest.getInstance("SHA-256");
+            MessageDigest hashSum = MessageDigest.getInstance("SHA-1");
 
             byte[] buffer = new byte[buff];
             long read = 0;
