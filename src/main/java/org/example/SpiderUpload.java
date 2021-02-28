@@ -167,41 +167,37 @@ public final class SpiderUpload {
 
         private void checkForNewFiles(String dirName) throws Exception {
             Map<String, List<String>> mapping = cache1.getMapping();
-            int count = 0;
+            System.out.println("Checking for new files in: "+dirName+"...");
 
             for (Map.Entry<String, List<String>> val : mapping.entrySet()) {
-                count++;
-                //check if a new file exists
-                File dir = new File(val.getKey());
-                if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
-                //current files in the directory
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    boolean newFile = true;
-                    for (File current : files) {
-                        for (String previous : val.getValue()) {
-                            if (previous.equals(current.getCanonicalPath())) {
-                                newFile = false;
-                                break;
+                if (dirName.equals(val.getKey())) {
+                    //check if a new file exists
+                    File dir = new File(val.getKey());
+                    if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
+                    //current files in the directory
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        boolean newFile = true;
+                        for (File current : files) {
+                            for (String previous : val.getValue()) {
+                                if (previous.equals(current.getCanonicalPath())) {
+                                    newFile = false;
+                                    break;
+                                }
+                            }
+
+                            if (newFile) {
+                                Hashcode hashcode = new Hashcode(current.getCanonicalPath());
+                                uploadToCloud(current.getCanonicalPath());
+                                String fileHash = hashcode.calculateFileKey();
+                                cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
                             }
                         }
-
-                        if (newFile) {
-                            Hashcode hashcode = new Hashcode(current.getCanonicalPath());
-                            uploadToCloud(current.getCanonicalPath());
-                            String fileHash = hashcode.calculateFileKey();
-                            cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
-                        }
                     }
-                }
-                if (count%100 == 0) {
-                    System.out.println(count+" checked files if new in..."+val.getKey());
+                    System.out.println("Checked files if new in..."+dirName);
+                    break;
                 }
             }
-            if (count < 100) {
-                System.out.println(count+" checked files if new in..."+dirName);
-            }
-
             File dir = new File(dirName);
             if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
             //current files in the directory
