@@ -55,7 +55,7 @@ public final class SpiderUpload {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            this.cache = cache2.getCache();
+            this.cache = new HashMap<>(cache2.getCache());
             List<String> selected = new ArrayList<>();
             for (String directory : directories) {
                 //i only want to backup these folders and their sub directories
@@ -168,35 +168,35 @@ public final class SpiderUpload {
         private void checkForNewFiles(String dirName) throws Exception {
             Map<String, List<String>> mapping = cache1.getMapping();
             System.out.println("Checking for new files in: "+dirName+"...");
+            List<String> value = mapping.get(dirName);
 
-            for (Map.Entry<String, List<String>> val : mapping.entrySet()) {
-                if (dirName.equals(val.getKey())) {
-                    //check if a new file exists
-                    File dir = new File(val.getKey());
-                    if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
-                    //current files in the directory
-                    File[] files = dir.listFiles();
-                    if (files != null) {
-                        boolean newFile = true;
-                        for (File current : files) {
-                            for (String previous : val.getValue()) {
-                                if (previous.equals(current.getCanonicalPath())) {
-                                    newFile = false;
-                                    break;
-                                }
-                            }
-
-                            if (newFile) {
-                                Hashcode hashcode = new Hashcode(current.getCanonicalPath());
-                                uploadToCloud(current.getCanonicalPath());
-                                String fileHash = hashcode.calculateFileKey();
-                                cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
+            if (value != null) {
+                //check if a new file exists
+                File dir = new File(dirName);
+                if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
+                //current files in the directory
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    boolean newFile = true;
+                    for (File current : files) {
+                        for (String previous : value) {
+                            if (previous.equals(current.getCanonicalPath())) {
+                                newFile = false;
+                                break;
                             }
                         }
+                        if (newFile) {
+                            Hashcode hashcode = new Hashcode(current.getCanonicalPath());
+                            uploadToCloud(current.getCanonicalPath());
+                            String fileHash = hashcode.calculateFileKey();
+                            if (current.isDirectory()) throw new Exception("Expected a file got a directory");
+                            cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
+                        }
                     }
-                    System.out.println("Checked files if new in..."+dirName);
-                    break;
                 }
+                System.out.println("Checked files if new in..."+dirName);
+            } else {
+                System.out.println("skipping..."+dirName);
             }
             File dir = new File(dirName);
             if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
@@ -207,6 +207,7 @@ public final class SpiderUpload {
                 for (File file : files) {
                     allFiles.add(file.getCanonicalPath());
                 }
+                if (!dir.isDirectory()) throw new Exception("Expected a file got a directory");
                 cache1.updateMap(dir.getCanonicalPath(), null, allFiles, false);
             }
         }
@@ -317,6 +318,7 @@ public final class SpiderUpload {
             String fileHash = hashcode.calculateFileKey();
 
             if (!eventPath.toString().endsWith(".blend@")) {
+                if (new File(key).isDirectory()) throw new Exception("Expected a file got a directory");
                 cache2.updateMap(key, fileHash, null, true);
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
@@ -559,6 +561,7 @@ public final class SpiderUpload {
             for (Map.Entry<String, String> val : cache.entrySet()) {
                 try {
                     toRemove.put(val.getKey(), fileHash);
+                    if (new File(val.getKey()).isDirectory()) throw new Exception("Expected a file got a directory");
                     cache2.updateMap(val.getKey(), fileHash, null, true);
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && !fileHash.equals(val.getValue())) {
@@ -571,6 +574,7 @@ public final class SpiderUpload {
                 }
             }
             if (cacheEmpty) {
+                if (myFile.isDirectory()) throw new Exception("Expected a file got a directory");
                 cache2.updateMap(myFile.getCanonicalPath(), fileHash, null, true);
             }
 

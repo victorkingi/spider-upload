@@ -41,7 +41,7 @@ public class Cache implements Serializable {
                 System.out.println("serializing mapping...size: "+mapping.size());
                 ous.writeObject(mapping);
             } else if (cacheFile.equals("cache.txt")) {
-                System.out.println("serializing cache...size: "+mapping.size());
+                System.out.println("serializing cache...size: "+cache.size());
                 ous.writeObject(cache);
             }
             ous.close();
