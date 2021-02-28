@@ -86,6 +86,7 @@ public final class SpiderUpload {
                 e.printStackTrace();
             }
             cache1.serializeMap();
+            cache2.serializeMap();
             System.out.println(TEXT_GREEN+"✅   : Done!"+TEXT_RESET);
 
             for (String select : selected) {
@@ -167,7 +168,7 @@ public final class SpiderUpload {
         private void checkForNewFiles(String dirName) throws Exception {
             Map<String, List<String>> mapping = cache1.getMapping();
             int count = 0;
-            if (mapping.size() > 0) throw new IllegalArgumentException("mapping must be empty");
+
             for (Map.Entry<String, List<String>> val : mapping.entrySet()) {
                 count++;
                 //check if a new file exists
@@ -184,6 +185,7 @@ public final class SpiderUpload {
                                 break;
                             }
                         }
+
                         if (newFile) {
                             Hashcode hashcode = new Hashcode(current.getCanonicalPath());
                             uploadToCloud(current.getCanonicalPath());
@@ -192,12 +194,12 @@ public final class SpiderUpload {
                         }
                     }
                 }
-                if (count%20 == 0) {
-                    System.out.println(count+" files checked if new..."+val.getValue());
+                if (count%100 == 0) {
+                    System.out.println(count+" checked files if new in..."+val.getKey());
                 }
             }
-            if (count < 20) {
-                System.out.println(count+" files checked if new..."+dirName);
+            if (count < 100) {
+                System.out.println(count+" checked files if new in..."+dirName);
             }
 
             File dir = new File(dirName);

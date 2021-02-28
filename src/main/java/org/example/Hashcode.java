@@ -26,7 +26,7 @@ public class Hashcode {
         int buff = 8192;
         try {
             File check  = new File(fileLocation);
-            long max = Long.parseLong("5000000000");
+            long max = Long.parseLong("10000000000");
             if (check.length() > max) {
                 System.out.println("hashed big file..."+fileLocation);
                 return String.valueOf(check.hashCode());

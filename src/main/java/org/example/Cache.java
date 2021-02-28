@@ -4,7 +4,6 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 import static org.example.SpiderUpload.*;
 
@@ -33,16 +32,20 @@ public class Cache implements Serializable {
     }
 
     protected void serializeMap() {
-        mapping = new HashMap<>(tempMapping);
-        try(FileOutputStream f = new FileOutputStream(cacheFile);
-            ObjectOutput s = new ObjectOutputStream(f)) {
+        try {
+            File obj = new File(cacheFile);
+            ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(obj));
+
             if (cacheFile.equals("allfiles.txt")) {
+                mapping = new HashMap<>(tempMapping);
                 System.out.println("serializing mapping...size: "+mapping.size());
-                s.writeObject(mapping);
+                ous.writeObject(mapping);
             } else if (cacheFile.equals("cache.txt")) {
                 System.out.println("serializing cache...size: "+mapping.size());
-                s.writeObject(cache);
+                ous.writeObject(cache);
             }
+            ous.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -70,27 +73,22 @@ public class Cache implements Serializable {
     protected void readMapping() throws IOException {
         File file = new File(cacheFile);
         if (file.length() > 0) {
-            FileInputStream in = new FileInputStream(cacheFile);
-            ObjectInputStream s = new ObjectInputStream(in);
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
             try {
-                Object o;
-                while ((o = s.readObject()) != null) {
-                    if (o instanceof Map) {
-                        if (cacheFile.equals("allfiles.txt")) {
-                            System.out.println("reading allfiles...");
-                            mapping = (Map<String, List<String>>) o;
-                        } else if (cacheFile.equals("cache.txt")) {
-                            System.out.println("reading cache...");
-                            cache = (Map<String, String>) o;
-                        }
-                    }
+                if (cacheFile.equals("cache.txt")) {
+                    System.out.println("reading cache...");
+                    cache = (Map<String, String>) ois.readObject();
+                    System.out.println("cache read");
+                } else if (cacheFile.equals("allfiles.txt")) {
+                    System.out.println("reading allfiles...");
+                    mapping = (Map<String, List<String>>) ois.readObject();
+                    System.out.println("allfiles read");
                 }
-
-            } catch (IOException | ClassNotFoundException e) {
+            } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
-            in.close();
-            s.close();
+            ois.close();
+
             new FileOutputStream(cacheFile).close();
         }
     }
