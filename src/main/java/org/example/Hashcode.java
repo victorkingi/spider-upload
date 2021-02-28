@@ -1,3 +1,6 @@
+package org.example;
+
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -9,7 +12,6 @@ public class Hashcode {
 
     public Hashcode(final String fileLocation) {
         this.fileLocation = fileLocation;
-
     }
 
     private String bytesToHex(byte[] hash) {
@@ -23,6 +25,12 @@ public class Hashcode {
     public String calculateFileKey() throws IOException {
         int buff = 8192;
         try {
+            File check  = new File(fileLocation);
+            long max = Long.parseLong("5000000000");
+            if (check.length() > max) {
+                System.out.println("hashed big file..."+fileLocation);
+                return String.valueOf(check.hashCode());
+            }
             RandomAccessFile file = new RandomAccessFile(fileLocation, "r");
             MessageDigest hashSum = MessageDigest.getInstance("SHA-1");
 

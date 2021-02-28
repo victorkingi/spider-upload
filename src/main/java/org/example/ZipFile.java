@@ -1,3 +1,5 @@
+package org.example;
+
 import javax.swing.filechooser.FileSystemView;
 import java.io.*;
 import java.text.DecimalFormat;
@@ -68,7 +70,7 @@ public class ZipFile {
                         }
                     }
                 }
-                var defaultDrive = availableDrives.entrySet().stream().findFirst();
+                Optional<Map.Entry<Integer, String>> defaultDrive = availableDrives.entrySet().stream().findFirst();
                 if (!found && defaultDrive.isPresent()) {
                     System.out.println("No drive selected, proceeding with (default) "+defaultDrive.get().getValue());
                     File newDir = new File(defaultDrive.get().getValue().concat("\\backup-temp"));

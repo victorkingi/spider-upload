@@ -1,4 +1,5 @@
-import com.google.common.collect.ImmutableList;
+package org.example;
+
 import org.apache.commons.io.FileUtils;
 
 import java.io.*;
@@ -21,17 +22,18 @@ public final class SpiderUpload {
     public static final String BUCKET_NAME = "blender-ableton";
 
     private static final class MySpiderUpload {
-        private final Map<String, String> cache;
+        private Map<String, String> cache;
         private final String mainDir;
-        private final ImmutableList<String> directories;
+        private final List<String> directories;
         private final Path diffDrive;
         private int directoryCount;
         private int divider;
         private File previousFile;
+        private final Cache cache1;
+        private final Cache cache2;
 
-        private MySpiderUpload(final Map<String, String> cache, final String mainDir,
-                               final ImmutableList<String> directories, final Path diffDrive) {
-            this.cache = cache;
+        private MySpiderUpload(final String mainDir,
+                               final List<String> directories, final Path diffDrive) {
             this.mainDir = mainDir;
             this.directories = directories;
             //an extra drive in case you have one to do a spider upload
@@ -39,12 +41,21 @@ public final class SpiderUpload {
             this.directoryCount = 0;
             this.divider = 32;
             this.previousFile = new File("D:\\");
+            this.cache1 = new Cache("allfiles.txt");
+            this.cache2 = new Cache("cache.txt");
+            this.cache1.createCache();
+            this.cache2.createCache();
             executeSpiderUpload();
         }
 
         private void executeSpiderUpload() {
-            createCache();
-            readCacheFile();
+            try {
+                cache1.readMapping();
+                cache2.readMapping();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            this.cache = cache2.getCache();
             List<String> selected = new ArrayList<>();
             for (String directory : directories) {
                 //i only want to backup these folders and their sub directories
@@ -74,6 +85,7 @@ public final class SpiderUpload {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            cache1.serializeMap();
             System.out.println(TEXT_GREEN+"✅   : Done!"+TEXT_RESET);
 
             for (String select : selected) {
@@ -133,12 +145,72 @@ public final class SpiderUpload {
             if (stream == null) {
                 throw new Exception("No directories returned after walking!");
             }
+
+            //FOR each directory have a map of directory and list all files present
+            //get another file to contain this if new file then backup
             stream.forEach((dirName) -> {
+                //first upload new files
+                try {
+                    checkForNewFiles(dirName.toFile().getCanonicalPath());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                //then upload changed files
                 Thread myThread = new Thread(() -> spiderWatch(dirName));
                 myThread.start();
             });
+
             System.out.println(TEXT_GREEN+"✅   : Cache refreshed... "+p+TEXT_RESET);
             System.out.println(TEXT_GREEN+"✅   : Spiders dispersed... "+p+TEXT_RESET);
+        }
+
+        private void checkForNewFiles(String dirName) throws Exception {
+            Map<String, List<String>> mapping = cache1.getMapping();
+            int count = 0;
+            if (mapping.size() > 0) throw new IllegalArgumentException("mapping must be empty");
+            for (Map.Entry<String, List<String>> val : mapping.entrySet()) {
+                count++;
+                //check if a new file exists
+                File dir = new File(val.getKey());
+                if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
+                //current files in the directory
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    boolean newFile = true;
+                    for (File current : files) {
+                        for (String previous : val.getValue()) {
+                            if (previous.equals(current.getCanonicalPath())) {
+                                newFile = false;
+                                break;
+                            }
+                        }
+                        if (newFile) {
+                            Hashcode hashcode = new Hashcode(current.getCanonicalPath());
+                            uploadToCloud(current.getCanonicalPath());
+                            String fileHash = hashcode.calculateFileKey();
+                            cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
+                        }
+                    }
+                }
+                if (count%20 == 0) {
+                    System.out.println(count+" files checked if new..."+val.getValue());
+                }
+            }
+            if (count < 20) {
+                System.out.println(count+" files checked if new..."+dirName);
+            }
+
+            File dir = new File(dirName);
+            if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
+            //current files in the directory
+            File[] files = dir.listFiles();
+            List<String> allFiles = new ArrayList<>();
+            if (files != null) {
+                for (File file : files) {
+                    allFiles.add(file.getCanonicalPath());
+                }
+                cache1.updateMap(dir.getCanonicalPath(), null, allFiles, false);
+            }
         }
 
         private Stream<Path> walkDirectoryTree(Path p) {
@@ -193,6 +265,11 @@ public final class SpiderUpload {
                     WatchEvent.Kind<?> kind = event.kind();
                     Path eventPath = (Path) event.context();
                     File current = new File(eventDir.toString() + '/' + eventPath.toString());
+                    //sometimes a file will register as exists then be deleted in the next microsecond
+                    //by a process, hence causing this method to throw Null Pointer Exception
+                    //sleeping for 2 seconds will prevent this
+
+                    //noinspection BusyWait
                     Thread.sleep(2000);
 
                     boolean newBlenderDir = current.isDirectory()
@@ -242,7 +319,7 @@ public final class SpiderUpload {
             String fileHash = hashcode.calculateFileKey();
 
             if (!eventPath.toString().endsWith(".blend@")) {
-                updateCacheFile(key, fileHash);
+                cache2.updateMap(key, fileHash, null, true);
                 System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
                 System.out.println(TEXT_GREEN+" "+eventDir + ": "+TEXT_RESET+TEXT_PURPLE + kind + ": "+ TEXT_RESET +TEXT_GREEN+ eventPath+TEXT_RESET);
                 uploadToCloud(key);
@@ -484,7 +561,7 @@ public final class SpiderUpload {
             for (Map.Entry<String, String> val : cache.entrySet()) {
                 try {
                     toRemove.put(val.getKey(), fileHash);
-                    updateCacheFile(val.getKey(), fileHash);
+                    cache2.updateMap(val.getKey(), fileHash, null, true);
                     if (myFile.getCanonicalPath().equals(val.getKey())
                             && !fileHash.equals(val.getValue())) {
                         cacheEmpty = false;
@@ -496,58 +573,14 @@ public final class SpiderUpload {
                 }
             }
             if (cacheEmpty) {
-                updateCacheFile(myFile.getCanonicalPath(), fileHash);
+                cache2.updateMap(myFile.getCanonicalPath(), fileHash, null, true);
             }
 
             //prevents java.util.ConcurrentModificationException
             for (Map.Entry<String, String> val : toRemove.entrySet()) {
+                Map<String, String> temp = new HashMap<>(cache);
                 cache.remove(val.getKey());
-            }
-        }
-        private void createCache() {
-            try {
-                File myObj = new File("cache.txt");
-                if (myObj.createNewFile()) {
-                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                    System.out.print(" Cache created: ");
-                    System.out.println(TEXT_GREEN+myObj.getName()+TEXT_RESET);
-
-                } else {
-                    System.out.print(TEXT_CYAN+"i    :"+TEXT_RESET);
-                    System.out.println(" Cache exists skipping creation.");
-                }
-            } catch (IOException e) {
-                System.out.println(TEXT_RED+"An error occurred."+TEXT_RESET);
-                e.printStackTrace();
-            }
-        }
-        private void updateCacheFile(String key, String val) {
-            try {
-                String lastKey = key.concat("   :");
-                FileWriter myWriter = new FileWriter("cache.txt", true);
-                myWriter.append(lastKey).append(val)
-                        .append("\n");
-                myWriter.close();
-
-            } catch (IOException e) {
-                System.out.println(TEXT_RED+"An error occurred."+TEXT_RESET);
-                e.printStackTrace();
-            }
-        }
-        private void readCacheFile() {
-            try {
-                File myObj = new File("cache.txt");
-                Scanner myReader = new Scanner(myObj);
-                while (myReader.hasNextLine()) {
-                    String data = myReader.nextLine();
-                    String[] arr = data.split(" {3}:");
-                    cache.put(arr[0], arr[1]);
-                }
-                myReader.close();
-                new FileOutputStream("cache.txt").close();
-            } catch (Exception e) {
-                System.out.println("An error occurred.");
-                e.printStackTrace();
+                if (cache.size() != temp.size()-1) throw new ArrayIndexOutOfBoundsException("cache wasn't reduced");
             }
         }
 
@@ -557,9 +590,9 @@ public final class SpiderUpload {
 
     }
 
-    public final void build(final Map<String, String> cache, final String mainDir,
-                                     final ImmutableList<String> directories,
-                                     final Path diffDrive) {
-        new MySpiderUpload(cache, mainDir, directories, diffDrive);
+    public final void build(final String mainDir,
+                            final List<String> directories,
+                            final Path diffDrive) {
+        new MySpiderUpload(mainDir, directories, diffDrive);
     }
 }

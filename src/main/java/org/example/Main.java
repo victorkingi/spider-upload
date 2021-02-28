@@ -1,4 +1,4 @@
-import com.google.common.collect.ImmutableList;
+package org.example;
 
 import java.io.*;
 import java.nio.file.*;
@@ -27,11 +27,8 @@ public class Main {
             }
         } else {
             final List<String> temp = Arrays.asList(tempDirectories);
-            final Map<String, String> cache = new HashMap<>();
-            final ImmutableList<String> directories = ImmutableList.<String>builder()
-                    .addAll(temp).build();
             final SpiderUpload start = new SpiderUpload();
-            start.build(cache, mainDir, directories, extraPath);
+            start.build(mainDir, temp, extraPath);
         }
     }
 }
