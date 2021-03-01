@@ -167,15 +167,17 @@ public final class SpiderUpload {
 
         private void checkForNewFiles(String dirName) throws Exception {
             Map<String, List<String>> mapping = cache1.getMapping();
+            File dir = new File(dirName);
+            if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
+            //current files in the directory
+            File[] files = dir.listFiles();
             System.out.println("Checking for new files in: "+dirName+"...");
             List<String> value = mapping.get(dirName);
 
             if (value != null) {
                 //check if a new file exists
-                File dir = new File(dirName);
                 if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
                 //current files in the directory
-                File[] files = dir.listFiles();
                 if (files != null) {
                     boolean newFile = true;
                     for (File current : files) {
@@ -189,21 +191,27 @@ public final class SpiderUpload {
                             Hashcode hashcode = new Hashcode(current.getCanonicalPath());
                             uploadToCloud(current.getCanonicalPath());
                             String fileHash = hashcode.calculateFileKey();
-                            if (current.isDirectory()) throw new Exception("Expected a file got a directory");
-                            cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
+                            if (!current.isDirectory())
+                                cache2.updateMap(current.getCanonicalPath(), fileHash, null, true);
                         }
                     }
                 }
                 System.out.println("Checked files if new in..."+dirName);
             } else {
                 System.out.println("skipping..."+dirName);
+                if (files != null) {
+                    for (File file : files) {
+                        Hashcode hashcode = new Hashcode(file.getCanonicalPath());
+                        uploadToCloud(file.getCanonicalPath());
+                        String fileHash = hashcode.calculateFileKey();
+                        if (!file.isDirectory()) 
+                            cache2.updateMap(file.getCanonicalPath(), fileHash, null, true);
+                    }
+                }
             }
-            File dir = new File(dirName);
-            if (!dir.isDirectory()) throw new IllegalArgumentException("not a directory!");
-            //current files in the directory
-            File[] files = dir.listFiles();
-            List<String> allFiles = new ArrayList<>();
+
             if (files != null) {
+                List<String> allFiles = new ArrayList<>();
                 for (File file : files) {
                     allFiles.add(file.getCanonicalPath());
                 }
